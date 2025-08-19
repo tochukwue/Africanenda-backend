@@ -127,7 +127,7 @@ export class IpslistService {
 async getGeneralDataGroupedByRegionAndCountry() {
   const records = await this.generalDataModel.find().lean();
 
-  // Group by geographicRegion
+  // Group by geographicRegion and then geographicReach
   const groupedByRegion = records.reduce((acc, record) => {
     const region = record.geographicRegion || 'Unknown';
     const country = record.geographicReach || 'Unknown';
@@ -140,7 +140,9 @@ async getGeneralDataGroupedByRegionAndCountry() {
     }
 
     acc[region][country].push({
-      ...record,
+      systemName: record.systemName,
+      geographicReach: record.geographicReach,
+      geographicRegion: record.geographicRegion,
       countryCode: this.getCountryCode(record.geographicReach),
     });
 
@@ -154,11 +156,12 @@ async getGeneralDataGroupedByRegionAndCountry() {
     countries: Object.entries(countries).map(([country, data]) => ({
       country,
       countryCode: this.getCountryCode(country),
-      total: data.length,
+      totalSystems: data.length,
       data,
     })),
   }));
 }
+
 
   //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
   //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
