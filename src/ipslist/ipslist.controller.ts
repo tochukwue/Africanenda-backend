@@ -123,7 +123,7 @@ export class IpslistController {
     description: 'Fetches all General Data records grouped by geographicRegion, including countryCode for each record.',
   })
   async getGeneralDataGroupedByRegion() {
-    return this.ipslistService.getGeneralDataGroupedByRegion();
+    return this.ipslistService.getGeneralDataGroupedByRegionAndCountry();
   }
 
   // Option 1: POST endpoint with request body (RECOMMENDED)

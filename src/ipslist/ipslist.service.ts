@@ -124,29 +124,42 @@ export class IpslistService {
   }
 
 
-  async getGeneralDataGroupedByRegion() {
+async getGeneralDataGroupedByRegionAndCountry() {
   const records = await this.generalDataModel.find().lean();
 
   // Group by geographicRegion
-  const grouped = records.reduce((acc, record) => {
+  const groupedByRegion = records.reduce((acc, record) => {
     const region = record.geographicRegion || 'Unknown';
+    const country = record.geographicReach || 'Unknown';
+
     if (!acc[region]) {
-      acc[region] = [];
+      acc[region] = {};
     }
-    acc[region].push({
+    if (!acc[region][country]) {
+      acc[region][country] = [];
+    }
+
+    acc[region][country].push({
       ...record,
       countryCode: this.getCountryCode(record.geographicReach),
     });
-    return acc;
-  }, {} as Record<string, any[]>);
 
-  // Convert to an array of { region, total, data }
-  return Object.entries(grouped).map(([region, data]) => ({
+    return acc;
+  }, {} as Record<string, Record<string, any[]>>);
+
+  // Convert into structured array
+  return Object.entries(groupedByRegion).map(([region, countries]) => ({
     region,
-    total: data.length,
-    data,
+    totalCountries: Object.keys(countries).length,
+    countries: Object.entries(countries).map(([country, data]) => ({
+      country,
+      countryCode: this.getCountryCode(country),
+      total: data.length,
+      data,
+    })),
   }));
 }
+
   //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
   //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
   //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
