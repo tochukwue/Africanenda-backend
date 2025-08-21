@@ -138,44 +138,52 @@ export class IpslistController {
   }
 
   // Option 1: POST endpoint with request body (RECOMMENDED)
-  @Post('by-categories')
-  @ApiOperation({
-    summary: 'Get IPS data by categories with filters',
-    description: 'Retrieve IPS records filtered by categories and optional additional filters'
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'List of IPS records enriched with country code and extra data.',
-    schema: {
-      example: {
-        categories: ['LIVE: DOMESTIC IPS'],
-        totalCategories: 1,
-        results: [
-          {
-            category: 'LIVE: DOMESTIC IPS',
-            total: 2,
-            data: [
-              {
-                category: 'LIVE: DOMESTIC IPS',
-                ipsName: 'Example IPS',
-                geography: 'Kenya',
-                countryCode: 'KE',
-                supportedUseCases: ['P2P', 'Retail'],
-                volumes2024: 500000,
-                values2024: 2000000
-              }
-            ]
-          }
-        ]
-      }
-    }
-  })
-  async getByCategoriesPost(@Body() dto: GetByCategoriesDto) {
-    console.log('Categories:', dto.categories);
-    console.log('Filters:', dto.filters);
+@Post('by-categories')
+@ApiOperation({
+  summary: 'Get IPS data by categories with filters',
+  description:
+    'Retrieve IPS records filtered by categories and optional additional filters. ' +
+    'Supports filtering by GeneralData fields (filters) and ipsName (only for regional categories).',
+})
+@ApiResponse({
+  status: 200,
+  description: 'List of IPS records enriched with country code and extra data.',
+  schema: {
+    example: {
+      categories: ['LIVE: DOMESTIC IPS'],
+      totalCategories: 1,
+      results: [
+        {
+          category: 'LIVE: DOMESTIC IPS',
+          total: 2,
+          data: [
+            {
+              category: 'LIVE: DOMESTIC IPS',
+              ipsName: 'Example IPS',
+              geography: 'Kenya',
+              countryCode: 'KE',
+              supportedUseCases: ['P2P', 'Retail'],
+              volumes2024: 500000,
+              values2024: 2000000,
+            },
+          ],
+        },
+      ],
+    },
+  },
+})
+async getByCategoriesPost(@Body() dto: GetByCategoriesDto) {
+  console.log('Categories:', dto.categories);
+  console.log('Filters:', dto.filters);
+  console.log('IpsNameFilter:', dto.ipsNameFilter);
 
-    return this.ipslistService.getByCategoriesEnriched(dto.categories, dto.filters);
-  }
+  return this.ipslistService.getByCategoriesEnriched(
+    dto.categories,
+    dto.filters,
+    dto.ipsNameFilter,
+  );
+}
+
   //   @Get('by-categories')
   //   @ApiOperation({
   //     summary: 'Get IPS activity by category',

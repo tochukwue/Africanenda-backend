@@ -1,7 +1,7 @@
 
 import { IsArray, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 // DTO for filters
 export class FiltersDto {
@@ -519,6 +519,13 @@ export class GetByCategoriesDto {
   @ValidateNested()
   @Type(() => FiltersDto)
   filters?: FiltersDto;
+
+    @ApiPropertyOptional({
+    description: 'Optional filter for ipsName (applies only to regional categories).',
+    type: [String],
+    example: ['PAPSS', 'SEPA'],
+  })
+  ipsNameFilter?: string[] | string;
 }
 
 

@@ -173,7 +173,7 @@ export class IpslistService {
   //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
   //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
 
-async countByDomesticAndRegional() {
+  async countByDomesticAndRegional() {
   const categoryAliases: Record<string, string> = {
     'LIVE: DOMESTIC IPS': 'LIVE',
     'DOMESTIC: IN DEVELOPMENT': 'IN-DEVELOPMENT',
@@ -197,14 +197,29 @@ async countByDomesticAndRegional() {
     'Countries with no regional IPS activity',
   ];
 
-  const buildGroup = async (groupName: string, categories: string[]) => {
+  const buildGroup = async (groupName: string, categories: string[], isRegional = false) => {
     const categoriesWithCounts = await Promise.all(
       categories.map(async (category) => {
-        const total = await this.ipsActivityModel.countDocuments({ category }).exec();
+        const docs = await this.ipsActivityModel.find({ category }).lean().exec();
+        const total = docs.length;
+
+        // For regional only: collect unique ipsName values
+        let ipsNames: string[] = [];
+        if (isRegional) {
+          ipsNames = [
+            ...new Set(
+              docs
+                .map((doc) => doc.ipsName)
+                .filter((name): name is string => !!name) // filter out null/undefined
+            ),
+          ];
+        }
+
         return {
           category,
-          alias: categoryAliases[category] || category, // attach special name
+          alias: categoryAliases[category] || category,
           total,
+          ...(isRegional ? { ipsNames } : {}), // only add ipsNames for regional
         };
       })
     );
@@ -219,7 +234,7 @@ async countByDomesticAndRegional() {
   };
 
   const domestic = await buildGroup('Domestic', domesticCategories);
-  const regional = await buildGroup('Regional', regionalCategories);
+  const regional = await buildGroup('Regional', regionalCategories, true);
 
   return {
     totalGroups: 2,
@@ -228,129 +243,320 @@ async countByDomesticAndRegional() {
 }
 
 
-  async getByCategoriesEnriched(
-    categories: string[],
-    filters?: any
-  ) {
-    const validCategories = [
-      'LIVE: DOMESTIC IPS',
-      'DOMESTIC: IN DEVELOPMENT',
-      'Countries with no domestic IPS activity',
+// async countByDomesticAndRegional() {
+//   const categoryAliases: Record<string, string> = {
+//     'LIVE: DOMESTIC IPS': 'LIVE',
+//     'DOMESTIC: IN DEVELOPMENT': 'IN-DEVELOPMENT',
+//     'Countries with no domestic IPS activity': 'NO IPS ACTIVITY',
+//     'LIVE: REGIONAL IPS': 'LIVE',
+//     'REGIONAL: IN DEVELOPMENT': 'IN-DEVELOPMENT',
+//     'IN PILOT PHASE': 'PILOT',
+//     'Countries with no regional IPS activity': 'NO IPS ACTIVITY',
+//   };
 
-      'LIVE: REGIONAL IPS',
-      'REGIONAL: IN DEVELOPMENT',
-      'IN PILOT PHASE',
-      'Countries with no regional IPS activity',
-    ];
+//   const domesticCategories = [
+//     'LIVE: DOMESTIC IPS',
+//     'DOMESTIC: IN DEVELOPMENT',
+//     'Countries with no domestic IPS activity',
+//   ];
 
-    // Validate categories
-    if (!Array.isArray(categories) || categories.length === 0) {
-      throw new BadRequestException('Categories must be a non-empty array.');
+//   const regionalCategories = [
+//     'LIVE: REGIONAL IPS',
+//     'REGIONAL: IN DEVELOPMENT',
+//     'IN PILOT PHASE',
+//     'Countries with no regional IPS activity',
+//   ];
+
+//   const buildGroup = async (groupName: string, categories: string[]) => {
+//     const categoriesWithCounts = await Promise.all(
+//       categories.map(async (category) => {
+//         const total = await this.ipsActivityModel.countDocuments({ category }).exec();
+//         return {
+//           category,
+//           alias: categoryAliases[category] || category, // attach special name
+//           total,
+//         };
+//       })
+//     );
+
+//     const total = categoriesWithCounts.reduce((sum, c) => sum + c.total, 0);
+
+//     return {
+//       group: groupName,
+//       total,
+//       categories: categoriesWithCounts,
+//     };
+//   };
+
+//   const domestic = await buildGroup('Domestic', domesticCategories);
+//   const regional = await buildGroup('Regional', regionalCategories);
+
+//   return {
+//     totalGroups: 2,
+//     groups: [domestic, regional],
+//   };
+// }
+
+async getByCategoriesEnriched(
+  categories: string[],
+  filters?: any,
+  ipsNameFilter?: string | string[]
+) {
+  const validCategories = [
+    'LIVE: DOMESTIC IPS',
+    'DOMESTIC: IN DEVELOPMENT',
+    'Countries with no domestic IPS activity',
+
+    'LIVE: REGIONAL IPS',
+    'REGIONAL: IN DEVELOPMENT',
+    'IN PILOT PHASE',
+    'Countries with no regional IPS activity',
+  ];
+
+  // Validate categories
+  if (!Array.isArray(categories) || categories.length === 0) {
+    throw new BadRequestException('Categories must be a non-empty array.');
+  }
+  categories.forEach((c) => {
+    if (!validCategories.includes(c)) {
+      throw new BadRequestException(`Invalid category: ${c}`);
     }
-    categories.forEach((c) => {
-      if (!validCategories.includes(c)) {
-        throw new BadRequestException(`Invalid category: ${c}`);
-      }
-    });
+  });
 
-    let allResults = [];
+  let allResults = [];
 
-    for (const category of categories) {
-      const ipsList = await this.ipsActivityModel.find({ category }).lean().exec();
-      let enrichedData = [];
+  for (const category of categories) {
+    let ipsList = await this.ipsActivityModel.find({ category }).lean().exec();
+    let enrichedData = [];
 
-      switch (category) {
-        case 'LIVE: DOMESTIC IPS': {
-          let filteredIpsList = ipsList;
+    switch (category) {
+      case 'LIVE: DOMESTIC IPS': {
+        let filteredIpsList = ipsList;
 
-          // If user provided filters, apply them
-          if (filters && Object.keys(filters).length > 0) {
-            const filterQueries = [];
+        // Apply GeneralData-based filters
+        if (filters && Object.keys(filters).length > 0) {
+          const filterQueries = [];
 
-            for (const [field, values] of Object.entries(filters)) {
-              if (!Array.isArray(values)) continue;
-              const regexConditions = values.map((v) => ({
-                [field]: { $regex: v, $options: 'i' }
-              }));
-              filterQueries.push({ $or: regexConditions });
-            }
-
-            // Get systemNames that match the filters in GeneralData
-            const matchingGeneral = await this.generalDataModel
-              .find({ $and: filterQueries })
-              .select('systemName')
-              .lean();
-
-            const matchingNames = new Set(matchingGeneral.map(g => g.systemName));
-            filteredIpsList = ipsList.filter(ips => matchingNames.has(ips.ipsName));
+          for (const [field, values] of Object.entries(filters)) {
+            if (!Array.isArray(values)) continue;
+            const regexConditions = values.map((v) => ({
+              [field]: { $regex: v, $options: 'i' }
+            }));
+            filterQueries.push({ $or: regexConditions });
           }
 
-          enrichedData = await Promise.all(
-            filteredIpsList.map(async (ips) => {
-              const volume = await this.volumeDataModel.findOne({ systemName: ips.ipsName }).lean();
-              const value = await this.valueDataModel.findOne({ systemName: ips.ipsName }).lean();
-              const general = await this.generalDataModel.findOne({ systemName: ips.ipsName }).lean();
-              return {
-                category,
-                ipsName: ips.ipsName,
-                geography: ips.geography,
-                countryCode: this.getCountryCode(ips.geography),
-                supportedUseCases: general?.supportedUseCases || null,
-                volumes2024: volume?.volumes2024 || null,
-                values2024: value?.values2024 || null,
-              };
-            })
-          );
-          break;
+          // Get systemNames that match the filters in GeneralData
+          const matchingGeneral = await this.generalDataModel
+            .find({ $and: filterQueries })
+            .select('systemName')
+            .lean();
+
+          const matchingNames = new Set(matchingGeneral.map(g => g.systemName));
+          filteredIpsList = ipsList.filter(ips => matchingNames.has(ips.ipsName));
         }
 
-        case 'DOMESTIC: IN DEVELOPMENT':
-        case 'Countries with no domestic IPS activity':
-          enrichedData = ipsList.map((ips) => ({
-            category,
-            geography: ips.geography,
-            countryCode: this.getCountryCode(ips.geography),
-            status: ips.status || null,
-          }));
-          break;
-
-        case 'LIVE: REGIONAL IPS':
-        case 'REGIONAL: IN DEVELOPMENT':
-        case 'IN PILOT PHASE':
-          enrichedData = ipsList.flatMap((ips) => {
-            const countries = this.splitCountries(ips.geographyCountries);
-            return countries.map((country) => ({
+        enrichedData = await Promise.all(
+          filteredIpsList.map(async (ips) => {
+            const volume = await this.volumeDataModel.findOne({ systemName: ips.ipsName }).lean();
+            const value = await this.valueDataModel.findOne({ systemName: ips.ipsName }).lean();
+            const general = await this.generalDataModel.findOne({ systemName: ips.ipsName }).lean();
+            return {
               category,
-              country,
-              countryCode: this.getCountryCode(country),
               ipsName: ips.ipsName,
-              ...(category !== 'LIVE: REGIONAL IPS' && { region: ips.region || null }),
-            }));
-          });
-          break;
-
-        case 'Countries with no regional IPS activity':
-          enrichedData = ipsList.map((ips) => ({
-            category,
-            geography: ips.geography,
-            countryCode: this.getCountryCode(ips.geography),
-          }));
-          break;
+              geography: ips.geography,
+              countryCode: this.getCountryCode(ips.geography),
+              supportedUseCases: general?.supportedUseCases || null,
+              volumes2024: volume?.volumes2024 || null,
+              values2024: value?.values2024 || null,
+            };
+          })
+        );
+        break;
       }
 
-      allResults.push({
-        category,
-        total: enrichedData.length,
-        data: enrichedData,
-      });
+      case 'DOMESTIC: IN DEVELOPMENT':
+      case 'Countries with no domestic IPS activity':
+        enrichedData = ipsList.map((ips) => ({
+          category,
+          geography: ips.geography,
+          countryCode: this.getCountryCode(ips.geography),
+          status: ips.status || null,
+        }));
+        break;
+
+      case 'LIVE: REGIONAL IPS':
+      case 'REGIONAL: IN DEVELOPMENT':
+      case 'IN PILOT PHASE': {
+        // ✅ Apply ipsNameFilter if provided
+        if (ipsNameFilter) {
+          const filterNames = Array.isArray(ipsNameFilter)
+            ? ipsNameFilter.map((v: string) => v.toLowerCase())
+            : [String(ipsNameFilter).toLowerCase()];
+
+          ipsList = ipsList.filter((ips) =>
+            ips.ipsName && filterNames.includes(ips.ipsName.toLowerCase())
+          );
+        }
+
+        enrichedData = ipsList.flatMap((ips) => {
+          const countries = this.splitCountries(ips.geographyCountries);
+          return countries.map((country) => ({
+            category,
+            country,
+            countryCode: this.getCountryCode(country),
+            ipsName: ips.ipsName,
+            ...(category !== 'LIVE: REGIONAL IPS' && { region: ips.region || null }),
+          }));
+        });
+        break;
+      }
+
+      case 'Countries with no regional IPS activity':
+        enrichedData = ipsList.map((ips) => ({
+          category,
+          geography: ips.geography,
+          countryCode: this.getCountryCode(ips.geography),
+        }));
+        break;
     }
 
-    return {
-      categories,
-      totalCategories: categories.length,
-      results: allResults,
-    };
+    allResults.push({
+      category,
+      total: enrichedData.length,
+      data: enrichedData,
+    });
   }
+
+  return {
+    categories,
+    totalCategories: categories.length,
+    results: allResults,
+  };
+}
+
+  // async getByCategoriesEnriched(
+  //   categories: string[],
+  //   filters?: any
+  // ) {
+  //   const validCategories = [
+  //     'LIVE: DOMESTIC IPS',
+  //     'DOMESTIC: IN DEVELOPMENT',
+  //     'Countries with no domestic IPS activity',
+
+  //     'LIVE: REGIONAL IPS',
+  //     'REGIONAL: IN DEVELOPMENT',
+  //     'IN PILOT PHASE',
+  //     'Countries with no regional IPS activity',
+  //   ];
+
+  //   // Validate categories
+  //   if (!Array.isArray(categories) || categories.length === 0) {
+  //     throw new BadRequestException('Categories must be a non-empty array.');
+  //   }
+  //   categories.forEach((c) => {
+  //     if (!validCategories.includes(c)) {
+  //       throw new BadRequestException(`Invalid category: ${c}`);
+  //     }
+  //   });
+
+  //   let allResults = [];
+
+  //   for (const category of categories) {
+  //     const ipsList = await this.ipsActivityModel.find({ category }).lean().exec();
+  //     let enrichedData = [];
+
+  //     switch (category) {
+  //       case 'LIVE: DOMESTIC IPS': {
+  //         let filteredIpsList = ipsList;
+
+  //         // If user provided filters, apply them
+  //         if (filters && Object.keys(filters).length > 0) {
+  //           const filterQueries = [];
+
+  //           for (const [field, values] of Object.entries(filters)) {
+  //             if (!Array.isArray(values)) continue;
+  //             const regexConditions = values.map((v) => ({
+  //               [field]: { $regex: v, $options: 'i' }
+  //             }));
+  //             filterQueries.push({ $or: regexConditions });
+  //           }
+
+  //           // Get systemNames that match the filters in GeneralData
+  //           const matchingGeneral = await this.generalDataModel
+  //             .find({ $and: filterQueries })
+  //             .select('systemName')
+  //             .lean();
+
+  //           const matchingNames = new Set(matchingGeneral.map(g => g.systemName));
+  //           filteredIpsList = ipsList.filter(ips => matchingNames.has(ips.ipsName));
+  //         }
+
+  //         enrichedData = await Promise.all(
+  //           filteredIpsList.map(async (ips) => {
+  //             const volume = await this.volumeDataModel.findOne({ systemName: ips.ipsName }).lean();
+  //             const value = await this.valueDataModel.findOne({ systemName: ips.ipsName }).lean();
+  //             const general = await this.generalDataModel.findOne({ systemName: ips.ipsName }).lean();
+  //             return {
+  //               category,
+  //               ipsName: ips.ipsName,
+  //               geography: ips.geography,
+  //               countryCode: this.getCountryCode(ips.geography),
+  //               supportedUseCases: general?.supportedUseCases || null,
+  //               volumes2024: volume?.volumes2024 || null,
+  //               values2024: value?.values2024 || null,
+  //             };
+  //           })
+  //         );
+  //         break;
+  //       }
+
+  //       case 'DOMESTIC: IN DEVELOPMENT':
+  //       case 'Countries with no domestic IPS activity':
+  //         enrichedData = ipsList.map((ips) => ({
+  //           category,
+  //           geography: ips.geography,
+  //           countryCode: this.getCountryCode(ips.geography),
+  //           status: ips.status || null,
+  //         }));
+  //         break;
+
+  //       case 'LIVE: REGIONAL IPS':
+  //       case 'REGIONAL: IN DEVELOPMENT':
+  //       case 'IN PILOT PHASE':
+  //         enrichedData = ipsList.flatMap((ips) => {
+  //           const countries = this.splitCountries(ips.geographyCountries);
+  //           return countries.map((country) => ({
+  //             category,
+  //             country,
+  //             countryCode: this.getCountryCode(country),
+  //             ipsName: ips.ipsName,
+  //             ...(category !== 'LIVE: REGIONAL IPS' && { region: ips.region || null }),
+  //           }));
+  //         });
+  //         break;
+
+  //       case 'Countries with no regional IPS activity':
+  //         enrichedData = ipsList.map((ips) => ({
+  //           category,
+  //           geography: ips.geography,
+  //           countryCode: this.getCountryCode(ips.geography),
+  //         }));
+  //         break;
+  //     }
+
+  //     allResults.push({
+  //       category,
+  //       total: enrichedData.length,
+  //       data: enrichedData,
+  //     });
+  //   }
+
+  //   return {
+  //     categories,
+  //     totalCategories: categories.length,
+  //     results: allResults,
+  //   };
+  // }
 
   private splitCountries(geoCountries?: string) {
     if (!geoCountries) return [];
