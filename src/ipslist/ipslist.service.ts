@@ -124,54 +124,110 @@ export class IpslistService {
   }
 
 
-async getGeneralDataGroupedByRegionAndCountry() {
-  const records = await this.generalDataModel.find().lean();
+  async getGeneralDataGroupedByRegionAndCountry() {
+    const records = await this.generalDataModel.find().lean();
 
-  // Group by geographicRegion and then geographicReach
-  const groupedByRegion = records.reduce((acc, record) => {
-    const region = record.geographicRegion || 'Unknown';
-    const country = record.geographicReach || 'Unknown';
+    // Group by geographicRegion and then geographicReach
+    const groupedByRegion = records.reduce((acc, record) => {
+      const region = record.geographicRegion || 'Unknown';
+      const country = record.geographicReach || 'Unknown';
 
-    if (!acc[region]) {
-      acc[region] = {};
-    }
-    if (!acc[region][country]) {
-      acc[region][country] = [];
-    }
+      if (!acc[region]) {
+        acc[region] = {};
+      }
+      if (!acc[region][country]) {
+        acc[region][country] = [];
+      }
 
-    acc[region][country].push({
-      systemName: record.systemName,
-      geographicReach: record.geographicReach,
-      geographicRegion: record.geographicRegion,
-      countryCode: this.getCountryCode(record.geographicReach),
-    });
+      acc[region][country].push({
+        systemName: record.systemName,
+        geographicReach: record.geographicReach,
+        geographicRegion: record.geographicRegion,
+        countryCode: this.getCountryCode(record.geographicReach),
+      });
 
-    return acc;
-  }, {} as Record<string, Record<string, any[]>>);
+      return acc;
+    }, {} as Record<string, Record<string, any[]>>);
 
-  // Convert into structured array
-  return Object.entries(groupedByRegion).map(([region, countries]) => ({
-    region,
-    totalCountries: Object.keys(countries).length,
-    countries: Object.entries(countries).map(([country, data]) => ({
-      country,
-      countryCode: this.getCountryCode(country),
-      totalSystems: data.length,
-      data,
-    })),
-  }));
+    // Convert into structured array
+    return Object.entries(groupedByRegion).map(([region, countries]) => ({
+      region,
+      totalCountries: Object.keys(countries).length,
+      countries: Object.entries(countries).map(([country, data]) => ({
+        country,
+        countryCode: this.getCountryCode(country),
+        totalSystems: data.length,
+        data,
+      })),
+    }));
+  }
+
+
+  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
+
+async countByDomesticAndRegional() {
+  const categoryAliases: Record<string, string> = {
+    'LIVE: DOMESTIC IPS': 'LIVE',
+    'DOMESTIC: IN DEVELOPMENT': 'IN DEVELOPMENT',
+    'Countries with no domestic IPS activity': 'NO IPS',
+    'LIVE: REGIONAL IPS': 'LIVE',
+    'REGIONAL: IN DEVELOPMENT': 'IN DEVELOPMENT',
+    'IN PILOT PHASE': 'PILOT',
+    'Countries with no regional IPS activity': 'NO IPS',
+  };
+
+  const domesticCategories = [
+    'LIVE: DOMESTIC IPS',
+    'DOMESTIC: IN DEVELOPMENT',
+    'Countries with no domestic IPS activity',
+  ];
+
+  const regionalCategories = [
+    'LIVE: REGIONAL IPS',
+    'REGIONAL: IN DEVELOPMENT',
+    'IN PILOT PHASE',
+    'Countries with no regional IPS activity',
+  ];
+
+  const buildGroup = async (groupName: string, categories: string[]) => {
+    const categoriesWithCounts = await Promise.all(
+      categories.map(async (category) => {
+        const total = await this.ipsActivityModel.countDocuments({ category }).exec();
+        return {
+          category,
+          alias: categoryAliases[category] || category, // attach special name
+          total,
+        };
+      })
+    );
+
+    const total = categoriesWithCounts.reduce((sum, c) => sum + c.total, 0);
+
+    return {
+      group: groupName,
+      total,
+      categories: categoriesWithCounts,
+    };
+  };
+
+  const domestic = await buildGroup('Domestic', domesticCategories);
+  const regional = await buildGroup('Regional', regionalCategories);
+
+  return {
+    totalGroups: 2,
+    groups: [domestic, regional],
+  };
 }
 
 
-  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
-  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
-  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
-  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
-  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
-  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
-  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
-  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
-  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
   async getByCategoriesEnriched(
     categories: string[],
     filters?: any
@@ -180,6 +236,7 @@ async getGeneralDataGroupedByRegionAndCountry() {
       'LIVE: DOMESTIC IPS',
       'DOMESTIC: IN DEVELOPMENT',
       'Countries with no domestic IPS activity',
+
       'LIVE: REGIONAL IPS',
       'REGIONAL: IN DEVELOPMENT',
       'IN PILOT PHASE',

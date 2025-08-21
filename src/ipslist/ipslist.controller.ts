@@ -117,13 +117,24 @@ export class IpslistController {
     return this.ipslistService.getVolumeDataTotal();
   }
 
-    @Get('ips-profile/grouped-by-region')
+  @Get('ips-profile/grouped-by-region')
   @ApiOperation({
     summary: 'Get General Data grouped by geographic region',
     description: 'Fetches all General Data records grouped by geographicRegion, including countryCode for each record.',
   })
   async getGeneralDataGroupedByRegion() {
     return this.ipslistService.getGeneralDataGroupedByRegionAndCountry();
+  }
+
+
+  @Get('categories/summary')
+  @ApiOperation({
+    summary: 'Get IPS categories summary',
+    description:
+      'Returns counts of IPS activities grouped into **Domestic** and **Regional**, with each category having a short alias (LIVE, IN DEVELOPMENT, NO IPS, PILOT).',
+  })
+  async getCategorySummary() {
+    return this.ipslistService.countByDomesticAndRegional();
   }
 
   // Option 1: POST endpoint with request body (RECOMMENDED)
