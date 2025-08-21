@@ -176,12 +176,12 @@ export class IpslistService {
 async countByDomesticAndRegional() {
   const categoryAliases: Record<string, string> = {
     'LIVE: DOMESTIC IPS': 'LIVE',
-    'DOMESTIC: IN DEVELOPMENT': 'IN DEVELOPMENT',
-    'Countries with no domestic IPS activity': 'NO IPS',
+    'DOMESTIC: IN DEVELOPMENT': 'IN-DEVELOPMENT',
+    'Countries with no domestic IPS activity': 'NO IPS ACTIVITY',
     'LIVE: REGIONAL IPS': 'LIVE',
-    'REGIONAL: IN DEVELOPMENT': 'IN DEVELOPMENT',
+    'REGIONAL: IN DEVELOPMENT': 'IN-DEVELOPMENT',
     'IN PILOT PHASE': 'PILOT',
-    'Countries with no regional IPS activity': 'NO IPS',
+    'Countries with no regional IPS activity': 'NO IPS ACTIVITY',
   };
 
   const domesticCategories = [
