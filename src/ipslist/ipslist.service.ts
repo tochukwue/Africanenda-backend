@@ -55,30 +55,94 @@ export class IpslistService {
   }
 
   async getValueDataWithCountryCode(systemNames: string[]) {
-    if (!Array.isArray(systemNames) || systemNames.length === 0) {
-      throw new BadRequestException('systemNames must be a non-empty array.');
-    }
-
-    const results = await this.valueDataModel.find({ systemName: { $in: systemNames } }).lean();
-
-    return results.map(item => ({
-      ...item,
-      countryCode: this.getCountryCode(item.geographicReach),
-    }));
+  if (!Array.isArray(systemNames) || systemNames.length === 0) {
+    throw new BadRequestException('systemNames must be a non-empty array.');
   }
 
-  async getVolumeDataWithCountryCode(systemNames: string[]) {
-    if (!Array.isArray(systemNames) || systemNames.length === 0) {
-      throw new BadRequestException('systemNames must be a non-empty array.');
-    }
+  const includeTotal = systemNames.some(name => name.toLowerCase() === 'total');
 
-    const results = await this.volumeDataModel.find({ systemName: { $in: systemNames } }).lean();
-
-    return results.map(item => ({
-      ...item,
-      countryCode: this.getCountryCode(item.geographicReach),
-    }));
+  let results;
+  if (includeTotal) {
+    // Fetch all documents
+    results = await this.valueDataModel.find({}).lean();
+  } else {
+    results = await this.valueDataModel.find({ systemName: { $in: systemNames } }).lean();
   }
+
+  // Map with countryCode
+  const mapped = results.map(item => ({
+    ...item,
+    countryCode: this.getCountryCode(item.geographicReach),
+  }));
+
+  if (includeTotal) {
+    const totalObj = mapped.find(item => item.systemName.toLowerCase() === 'total');
+    const data = mapped.filter(item => item.systemName.toLowerCase() !== 'total');
+    return {
+      total: totalObj || null,
+      data,
+    };
+  }
+
+  return mapped;
+}
+
+async getVolumeDataWithCountryCode(systemNames: string[]) {
+  if (!Array.isArray(systemNames) || systemNames.length === 0) {
+    throw new BadRequestException('systemNames must be a non-empty array.');
+  }
+
+  const includeTotal = systemNames.some(name => name.toLowerCase() === 'total');
+
+  let results;
+  if (includeTotal) {
+    results = await this.volumeDataModel.find({}).lean();
+  } else {
+    results = await this.volumeDataModel.find({ systemName: { $in: systemNames } }).lean();
+  }
+
+  const mapped = results.map(item => ({
+    ...item,
+    countryCode: this.getCountryCode(item.geographicReach),
+  }));
+
+  if (includeTotal) {
+    const totalObj = mapped.find(item => item.systemName.toLowerCase() === 'total');
+    const data = mapped.filter(item => item.systemName.toLowerCase() !== 'total');
+    return {
+      total: totalObj || null,
+      data,
+    };
+  }
+
+  return mapped;
+}
+
+  // async getValueDataWithCountryCode(systemNames: string[]) {
+  //   if (!Array.isArray(systemNames) || systemNames.length === 0) {
+  //     throw new BadRequestException('systemNames must be a non-empty array.');
+  //   }
+
+  //   const results = await this.valueDataModel.find({ systemName: { $in: systemNames } }).lean();
+
+  //   return results.map(item => ({
+  //     ...item,
+  //     countryCode: this.getCountryCode(item.geographicReach),
+  //   }));
+  // }
+
+  // async getVolumeDataWithCountryCode(systemNames: string[]) {
+  //   if (!Array.isArray(systemNames) || systemNames.length === 0) {
+  //     throw new BadRequestException('systemNames must be a non-empty array.');
+  //   }
+
+  //   const results = await this.volumeDataModel.find({ systemName: { $in: systemNames } }).lean();
+
+  //   return results.map(item => ({
+  //     ...item,
+  //     countryCode: this.getCountryCode(item.geographicReach),
+  //   }));
+  // }
 
 
   async getAllValueDataExceptTotal() {
