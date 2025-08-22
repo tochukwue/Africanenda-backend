@@ -8,8 +8,8 @@ export class GeneralData {
     @Prop() geographicRegion: string;
     @Prop() coverage: string; // Domestic/Regional
     @Prop() yearOfEstablishment: string;
-    @Prop() ipsType: string;
     @Prop() interoperabilityArrangement: string;
+    @Prop() ipsType: string;
     @Prop() governanceTypology: string;
     @Prop() ownershipModel: string;
     @Prop() systemOwner: string;
