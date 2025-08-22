@@ -54,7 +54,7 @@ export class IpslistService {
       .exec();
   }
 
-  async getValueDataWithCountryCode(systemNames: string[]) {
+async getValueDataWithCountryCode(systemNames: string[]) {
   if (!Array.isArray(systemNames) || systemNames.length === 0) {
     throw new BadRequestException('systemNames must be a non-empty array.');
   }
@@ -63,13 +63,13 @@ export class IpslistService {
 
   let results;
   if (includeTotal) {
-    // Fetch all documents
+    // Fetch all because we need the Total entry
     results = await this.valueDataModel.find({}).lean();
   } else {
     results = await this.valueDataModel.find({ systemName: { $in: systemNames } }).lean();
   }
 
-  // Map with countryCode
+  // Add country codes
   const mapped = results.map(item => ({
     ...item,
     countryCode: this.getCountryCode(item.geographicReach),
@@ -77,7 +77,16 @@ export class IpslistService {
 
   if (includeTotal) {
     const totalObj = mapped.find(item => item.systemName.toLowerCase() === 'total');
-    const data = mapped.filter(item => item.systemName.toLowerCase() !== 'total');
+
+    // Filter only the requested systemNames (excluding 'total')
+    const requestedOthers = systemNames
+      .filter(name => name.toLowerCase() !== 'total')
+      .map(name => name.toLowerCase());
+
+    const data = mapped.filter(item =>
+      requestedOthers.includes(item.systemName.toLowerCase())
+    );
+
     return {
       total: totalObj || null,
       data,
@@ -108,7 +117,15 @@ async getVolumeDataWithCountryCode(systemNames: string[]) {
 
   if (includeTotal) {
     const totalObj = mapped.find(item => item.systemName.toLowerCase() === 'total');
-    const data = mapped.filter(item => item.systemName.toLowerCase() !== 'total');
+
+    const requestedOthers = systemNames
+      .filter(name => name.toLowerCase() !== 'total')
+      .map(name => name.toLowerCase());
+
+    const data = mapped.filter(item =>
+      requestedOthers.includes(item.systemName.toLowerCase())
+    );
+
     return {
       total: totalObj || null,
       data,
@@ -117,6 +134,7 @@ async getVolumeDataWithCountryCode(systemNames: string[]) {
 
   return mapped;
 }
+
 
   // async getValueDataWithCountryCode(systemNames: string[]) {
   //   if (!Array.isArray(systemNames) || systemNames.length === 0) {
