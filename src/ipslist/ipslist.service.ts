@@ -54,22 +54,19 @@ export class IpslistService {
       .exec();
   }
 
-async getValueDataWithCountryCode(systemNames: string[]) {
+
+  async getValueDataWithCountryCode(systemNames: string[]) {
   if (!Array.isArray(systemNames) || systemNames.length === 0) {
     throw new BadRequestException('systemNames must be a non-empty array.');
   }
 
   const includeTotal = systemNames.some(name => name.toLowerCase() === 'total');
 
-  let results;
-  if (includeTotal) {
-    // Fetch all because we need the Total entry
-    results = await this.valueDataModel.find({}).lean();
-  } else {
-    results = await this.valueDataModel.find({ systemName: { $in: systemNames } }).lean();
-  }
+  // Fetch all if 'total' is present; else only requested
+  const results = includeTotal
+    ? await this.valueDataModel.find({}).lean()
+    : await this.valueDataModel.find({ systemName: { $in: systemNames } }).lean();
 
-  // Add country codes
   const mapped = results.map(item => ({
     ...item,
     countryCode: this.getCountryCode(item.geographicReach),
@@ -78,14 +75,19 @@ async getValueDataWithCountryCode(systemNames: string[]) {
   if (includeTotal) {
     const totalObj = mapped.find(item => item.systemName.toLowerCase() === 'total');
 
-    // Filter only the requested systemNames (excluding 'total')
-    const requestedOthers = systemNames
+    const otherNames = systemNames
       .filter(name => name.toLowerCase() !== 'total')
       .map(name => name.toLowerCase());
 
-    const data = mapped.filter(item =>
-      requestedOthers.includes(item.systemName.toLowerCase())
-    );
+    let data;
+
+    if (otherNames.length === 0) {
+      // Only 'total' was requested: return ALL other records
+      data = mapped.filter(item => item.systemName.toLowerCase() !== 'total');
+    } else {
+      // 'total' + other names: return only those others
+      data = mapped.filter(item => otherNames.includes(item.systemName.toLowerCase()));
+    }
 
     return {
       total: totalObj || null,
@@ -103,12 +105,9 @@ async getVolumeDataWithCountryCode(systemNames: string[]) {
 
   const includeTotal = systemNames.some(name => name.toLowerCase() === 'total');
 
-  let results;
-  if (includeTotal) {
-    results = await this.volumeDataModel.find({}).lean();
-  } else {
-    results = await this.volumeDataModel.find({ systemName: { $in: systemNames } }).lean();
-  }
+  const results = includeTotal
+    ? await this.volumeDataModel.find({}).lean()
+    : await this.volumeDataModel.find({ systemName: { $in: systemNames } }).lean();
 
   const mapped = results.map(item => ({
     ...item,
@@ -118,13 +117,19 @@ async getVolumeDataWithCountryCode(systemNames: string[]) {
   if (includeTotal) {
     const totalObj = mapped.find(item => item.systemName.toLowerCase() === 'total');
 
-    const requestedOthers = systemNames
+    const otherNames = systemNames
       .filter(name => name.toLowerCase() !== 'total')
       .map(name => name.toLowerCase());
 
-    const data = mapped.filter(item =>
-      requestedOthers.includes(item.systemName.toLowerCase())
-    );
+    let data;
+
+    if (otherNames.length === 0) {
+      // Only 'total' was requested: return ALL other records
+      data = mapped.filter(item => item.systemName.toLowerCase() !== 'total');
+    } else {
+      // 'total' + other names: return only those others
+      data = mapped.filter(item => otherNames.includes(item.systemName.toLowerCase()));
+    }
 
     return {
       total: totalObj || null,
@@ -135,32 +140,88 @@ async getVolumeDataWithCountryCode(systemNames: string[]) {
   return mapped;
 }
 
+// async getValueDataWithCountryCode(systemNames: string[]) {
+//   if (!Array.isArray(systemNames) || systemNames.length === 0) {
+//     throw new BadRequestException('systemNames must be a non-empty array.');
+//   }
 
-  // async getValueDataWithCountryCode(systemNames: string[]) {
-  //   if (!Array.isArray(systemNames) || systemNames.length === 0) {
-  //     throw new BadRequestException('systemNames must be a non-empty array.');
-  //   }
+//   const includeTotal = systemNames.some(name => name.toLowerCase() === 'total');
 
-  //   const results = await this.valueDataModel.find({ systemName: { $in: systemNames } }).lean();
+//   let results;
+//   if (includeTotal) {
+//     // Fetch all because we need the Total entry
+//     results = await this.valueDataModel.find({}).lean();
+//   } else {
+//     results = await this.valueDataModel.find({ systemName: { $in: systemNames } }).lean();
+//   }
 
-  //   return results.map(item => ({
-  //     ...item,
-  //     countryCode: this.getCountryCode(item.geographicReach),
-  //   }));
-  // }
+//   // Add country codes
+//   const mapped = results.map(item => ({
+//     ...item,
+//     countryCode: this.getCountryCode(item.geographicReach),
+//   }));
 
-  // async getVolumeDataWithCountryCode(systemNames: string[]) {
-  //   if (!Array.isArray(systemNames) || systemNames.length === 0) {
-  //     throw new BadRequestException('systemNames must be a non-empty array.');
-  //   }
+//   if (includeTotal) {
+//     const totalObj = mapped.find(item => item.systemName.toLowerCase() === 'total');
 
-  //   const results = await this.volumeDataModel.find({ systemName: { $in: systemNames } }).lean();
+//     // Filter only the requested systemNames (excluding 'total')
+//     const requestedOthers = systemNames
+//       .filter(name => name.toLowerCase() !== 'total')
+//       .map(name => name.toLowerCase());
 
-  //   return results.map(item => ({
-  //     ...item,
-  //     countryCode: this.getCountryCode(item.geographicReach),
-  //   }));
-  // }
+//     const data = mapped.filter(item =>
+//       requestedOthers.includes(item.systemName.toLowerCase())
+//     );
+
+//     return {
+//       total: totalObj || null,
+//       data,
+//     };
+//   }
+
+//   return mapped;
+// }
+
+// async getVolumeDataWithCountryCode(systemNames: string[]) {
+//   if (!Array.isArray(systemNames) || systemNames.length === 0) {
+//     throw new BadRequestException('systemNames must be a non-empty array.');
+//   }
+
+//   const includeTotal = systemNames.some(name => name.toLowerCase() === 'total');
+
+//   let results;
+//   if (includeTotal) {
+//     results = await this.volumeDataModel.find({}).lean();
+//   } else {
+//     results = await this.volumeDataModel.find({ systemName: { $in: systemNames } }).lean();
+//   }
+
+//   const mapped = results.map(item => ({
+//     ...item,
+//     countryCode: this.getCountryCode(item.geographicReach),
+//   }));
+
+//   if (includeTotal) {
+//     const totalObj = mapped.find(item => item.systemName.toLowerCase() === 'total');
+
+//     const requestedOthers = systemNames
+//       .filter(name => name.toLowerCase() !== 'total')
+//       .map(name => name.toLowerCase());
+
+//     const data = mapped.filter(item =>
+//       requestedOthers.includes(item.systemName.toLowerCase())
+//     );
+
+//     return {
+//       total: totalObj || null,
+//       data,
+//     };
+//   }
+
+//   return mapped;
+// }
+
+
 
 
   async getAllValueDataExceptTotal() {
