@@ -669,209 +669,230 @@ async getByCategoriesEnriched(
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async fetchAndSyncIpsActivity() {
-    try {
-      const credentials = JSON.parse(
-        fs.readFileSync(
-          path.resolve(__dirname, '../../../config/authentication-411609-dcd87bcd1c0b.json'),
-          'utf8',
-        ),
-      );
+  try {
+    const credentials = JSON.parse(
+      fs.readFileSync(
+        path.resolve(__dirname, '../../../config/authentication-411609-dcd87bcd1c0b.json'),
+        'utf8',
+      ),
+    );
 
-      const auth = new google.auth.GoogleAuth({
-        credentials,
-        scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-      });
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+    });
 
-      const sheets = google.sheets({ version: 'v4', auth });
-      const spreadsheetId = '1VBLgF2JRCHh4RKPHhTB66yCD-Zc5Ru0wCxX3ZEDtTR0';
-      const range = 'Live IPS List!B1:ZZ';
+    const sheets = google.sheets({ version: 'v4', auth });
+    const spreadsheetId = '1VBLgF2JRCHh4RKPHhTB66yCD-Zc5Ru0wCxX3ZEDtTR0';
+    const range = 'Live IPS List!B1:ZZ';
 
-      const res = await sheets.spreadsheets.values.get({ spreadsheetId, range });
-      const rows = res.data.values || [];
+    const res = await sheets.spreadsheets.values.get({ spreadsheetId, range });
+    const rows = res.data.values || [];
 
-      if (!rows.length) {
-        this.logger.warn('No IPS Activity data found.');
-        return;
-      }
-
-      // Define fixed structure
-      const categoriesConfig = [
-        {
-          category: 'LIVE: DOMESTIC IPS',
-          headers: ['ipsName', 'geography', 'region', 'ipsType'],
-          start: 3,
-          end: 33,
-        },
-        {
-          category: 'DOMESTIC: IN DEVELOPMENT', // enum value
-          headers: ['geography', 'status'],
-          start: 40,
-          end: 57,
-        },
-        {
-          category: 'Countries with no domestic IPS activity',
-          headers: ['geography'],
-          start: 60,
-          end: 68,
-        },
-        {
-          category: 'LIVE: REGIONAL IPS',
-          headers: ['ipsName', 'geographyCountries', 'region', 'ipsType'],
-          start: 71,
-          end: 73,
-        },
-        {
-          category: 'REGIONAL: IN DEVELOPMENT', // enum value
-          headers: ['ipsName', 'geographyCountries', 'region'],
-          start: 75,
-          end: 78,
-        },
-        {
-          category: 'IN PILOT PHASE',
-          headers: ['ipsName', 'geographyCountries', 'region'],
-          start: 80,
-          end: 81,
-        },
-        {
-          category: 'Countries with no regional IPS activity',
-          headers: ['geography'],
-          start: 83,
-          end: 86,
-        },
-      ];
-
-
-      const ops = [];
-
-      for (const config of categoriesConfig) {
-        for (let i = config.start; i <= config.end; i++) {
-          const row = rows[i] || [];
-          if (row.every(cell => !cell || cell.trim() === '')) continue; // skip empty row
-
-          const doc: any = { category: config.category };
-
-          config.headers.forEach((header, idx) => {
-            doc[header] = row[idx] || '';
-          });
-
-          ops.push({
-            updateOne: {
-              filter: { category: doc.category, ...this.buildKeyFilter(doc) },
-              update: { $set: doc },
-              upsert: true,
-            },
-          });
-        }
-      }
-
-      if (ops.length) {
-        const bulkRes = await this.ipsActivityModel.bulkWrite(ops);
-        this.logger.log(`IPS Activity data synced: ${JSON.stringify(bulkRes)}`);
-      } else {
-        this.logger.log('No valid IPS Activity rows to upsert.');
-      }
-
-    } catch (error) {
-      this.logger.error('Error fetching IPS Activity from Google Sheets', error);
+    if (!rows.length) {
+      this.logger.warn('No IPS Activity data found.');
+      return;
     }
-  }
 
-  private buildKeyFilter(doc: any) {
-    if (doc.geography) return { geography: doc.geography };
-    if (doc.ipsName) return { ipsName: doc.ipsName };
-    return {};
+    // Define structure for categories
+    const categoriesConfig = [
+      {
+        category: 'LIVE: DOMESTIC IPS',
+        headers: ['ipsName', 'geography', 'region', 'ipsType'],
+        start: 3,
+        end: 33,
+      },
+      {
+        category: 'DOMESTIC: IN DEVELOPMENT',
+        headers: ['geography', 'status'],
+        start: 40,
+        end: 57,
+      },
+      {
+        category: 'Countries with no domestic IPS activity',
+        headers: ['geography'],
+        start: 60,
+        end: 68,
+      },
+      {
+        category: 'LIVE: REGIONAL IPS',
+        headers: ['ipsName', 'geographyCountries', 'region', 'ipsType'],
+        start: 71,
+        end: 73,
+      },
+      {
+        category: 'REGIONAL: IN DEVELOPMENT',
+        headers: ['ipsName', 'geographyCountries', 'region'],
+        start: 75,
+        end: 78,
+      },
+      {
+        category: 'IN PILOT PHASE',
+        headers: ['ipsName', 'geographyCountries', 'region'],
+        start: 80,
+        end: 81,
+      },
+      {
+        category: 'Countries with no regional IPS activity',
+        headers: ['geography'],
+        start: 83,
+        end: 86,
+      },
+    ];
+
+    const ops = [];
+
+    for (const config of categoriesConfig) {
+      for (let i = config.start; i <= config.end; i++) {
+        const row = rows[i] || [];
+        if (row.every(cell => !cell || cell.trim() === '')) continue; // Skip empty rows
+
+        const doc: any = { category: config.category };
+
+        // Map headers to row data
+        config.headers.forEach((header, idx) => {
+          doc[header] = row[idx] || '';
+        });
+
+        // Build a dynamic unique filter
+        const filter: any = { category: doc.category };
+
+        if (doc.ipsName) filter.ipsName = doc.ipsName;
+        if (doc.geography) filter.geography = doc.geography;
+        if (doc.geographyCountries) filter.geographyCountries = doc.geographyCountries;
+
+        ops.push({
+          updateOne: {
+            filter,
+            update: { $set: doc },
+            upsert: true,
+          },
+        });
+      }
+    }
+
+    if (ops.length) {
+      const bulkRes = await this.ipsActivityModel.bulkWrite(ops);
+      this.logger.log(`IPS Activity data synced: ${JSON.stringify(bulkRes)}`);
+    } else {
+      this.logger.log('No valid IPS Activity rows to upsert.');
+    }
+  } catch (error) {
+    this.logger.error('Error fetching IPS Activity from Google Sheets', error);
   }
 }
-// async getByCategoriesEnriched(categories: string[]) {
-//   const validCategories = [
-//     'LIVE: DOMESTIC IPS',
-//     'DOMESTIC: IN DEVELOPMENT',
-//     'Countries with no domestic IPS activity',
-//     'LIVE: REGIONAL IPS',
-//     'REGIONAL: IN DEVELOPMENT',
-//     'IN PILOT PHASE',
-//     'Countries with no regional IPS activity',
-//   ];
 
-//   // Validate categories
-//   if (!Array.isArray(categories) || categories.length === 0) {
-//     throw new BadRequestException('Categories must be a non-empty array.');
-//   }
-//   categories.forEach((c) => {
-//     if (!validCategories.includes(c)) {
-//       throw new BadRequestException(`Invalid category: ${c}`);
-//     }
-//   });
+  // async fetchAndSyncIpsActivity() {
+  //   try {
+  //     const credentials = JSON.parse(
+  //       fs.readFileSync(
+  //         path.resolve(__dirname, '../../../config/authentication-411609-dcd87bcd1c0b.json'),
+  //         'utf8',
+  //       ),
+  //     );
 
-//   let allResults = [];
+  //     const auth = new google.auth.GoogleAuth({
+  //       credentials,
+  //       scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+  //     });
 
-//   for (const category of categories) {
-//     const ipsList = await this.ipsActivityModel.find({ category }).lean().exec();
-//     let enrichedData = [];
+  //     const sheets = google.sheets({ version: 'v4', auth });
+  //     const spreadsheetId = '1VBLgF2JRCHh4RKPHhTB66yCD-Zc5Ru0wCxX3ZEDtTR0';
+  //     const range = 'Live IPS List!B1:ZZ';
 
-//     switch (category) {
-//       case 'LIVE: DOMESTIC IPS':
-//         enrichedData = await Promise.all(
-//           ipsList.map(async (ips) => {
-//             const volume = await this.volumeDataModel.findOne({ systemName: ips.ipsName }).lean();
-//             const general = await this.generalDataModel.findOne({ systemName: ips.ipsName }).lean();
-//             return {
-//               category,
-//               ipsName: ips.ipsName,
-//               geography: ips.geography,
-//               countryCode: this.getCountryCode(ips.geography),
-//               supportedUseCases: general?.supportedUseCases || null,
-//               volumes2024: volume?.volumes2024 || null,
-//               values2024: volume?.volumes2024 || null, // Assuming values2024 comes from VolumeData (adjust if from ValueData)
-//             };
-//           })
-//         );
-//         break;
+  //     const res = await sheets.spreadsheets.values.get({ spreadsheetId, range });
+  //     const rows = res.data.values || [];
 
-//       case 'DOMESTIC: IN DEVELOPMENT':
-//       case 'Countries with no domestic IPS activity':
-//         enrichedData = ipsList.map((ips) => ({
-//           category,
-//           geography: ips.geography,
-//           countryCode: this.getCountryCode(ips.geography),
-//           status: ips.status || null,
-//         }));
-//         break;
+  //     if (!rows.length) {
+  //       this.logger.warn('No IPS Activity data found.');
+  //       return;
+  //     }
 
-//       case 'LIVE: REGIONAL IPS':
-//       case 'REGIONAL: IN DEVELOPMENT':
-//       case 'IN PILOT PHASE':
-//         enrichedData = ipsList.flatMap((ips) => {
-//           const countries = this.splitCountries(ips.geographyCountries);
-//           return countries.map((country) => ({
-//             category,
-//             country,
-//             countryCode: this.getCountryCode(country),
-//             ipsName: ips.ipsName,
-//             ...(category !== 'LIVE: REGIONAL IPS' && { region: ips.region || null }),
-//           }));
-//         });
-//         break;
+  //     // Define fixed structure
+  //     const categoriesConfig = [
+  //       {
+  //         category: 'LIVE: DOMESTIC IPS',
+  //         headers: ['ipsName', 'geography', 'region', 'ipsType'],
+  //         start: 3,
+  //         end: 33,
+  //       },
+  //       {
+  //         category: 'DOMESTIC: IN DEVELOPMENT', // enum value
+  //         headers: ['geography', 'status'],
+  //         start: 40,
+  //         end: 57,
+  //       },
+  //       {
+  //         category: 'Countries with no domestic IPS activity',
+  //         headers: ['geography'],
+  //         start: 60,
+  //         end: 68,
+  //       },
+  //       {
+  //         category: 'LIVE: REGIONAL IPS',
+  //         headers: ['ipsName', 'geographyCountries', 'region', 'ipsType'],
+  //         start: 71,
+  //         end: 73,
+  //       },
+  //       {
+  //         category: 'REGIONAL: IN DEVELOPMENT', // enum value
+  //         headers: ['ipsName', 'geographyCountries', 'region'],
+  //         start: 75,
+  //         end: 78,
+  //       },
+  //       {
+  //         category: 'IN PILOT PHASE',
+  //         headers: ['ipsName', 'geographyCountries', 'region'],
+  //         start: 80,
+  //         end: 81,
+  //       },
+  //       {
+  //         category: 'Countries with no regional IPS activity',
+  //         headers: ['geography'],
+  //         start: 83,
+  //         end: 86,
+  //       },
+  //     ];
 
-//       case 'Countries with no regional IPS activity':
-//         enrichedData = ipsList.map((ips) => ({
-//           category,
-//           geography: ips.geography,
-//           countryCode: this.getCountryCode(ips.geography),
-//         }));
-//         break;
-//     }
 
-//     allResults.push({
-//       category,
-//       total: enrichedData.length,
-//       data: enrichedData,
-//     });
-//   }
+  //     const ops = [];
 
-//   return {
-//     categories: categories,
-//     totalCategories: categories.length,
-//     results: allResults,
-//   };
-// }
+  //     for (const config of categoriesConfig) {
+  //       for (let i = config.start; i <= config.end; i++) {
+  //         const row = rows[i] || [];
+  //         if (row.every(cell => !cell || cell.trim() === '')) continue; // skip empty row
+
+  //         const doc: any = { category: config.category };
+
+  //         config.headers.forEach((header, idx) => {
+  //           doc[header] = row[idx] || '';
+  //         });
+
+  //         ops.push({
+  //           updateOne: {
+  //             filter: { category: doc.category, ...this.buildKeyFilter(doc) },
+  //             update: { $set: doc },
+  //             upsert: true,
+  //           },
+  //         });
+  //       }
+  //     }
+
+  //     if (ops.length) {
+  //       const bulkRes = await this.ipsActivityModel.bulkWrite(ops);
+  //       this.logger.log(`IPS Activity data synced: ${JSON.stringify(bulkRes)}`);
+  //     } else {
+  //       this.logger.log('No valid IPS Activity rows to upsert.');
+  //     }
+
+  //   } catch (error) {
+  //     this.logger.error('Error fetching IPS Activity from Google Sheets', error);
+  //   }
+  // }
+
+  // private buildKeyFilter(doc: any) {
+  //   if (doc.geography) return { geography: doc.geography };
+  //   if (doc.ipsName) return { ipsName: doc.ipsName };
+  //   return {};
+  // }
+}
