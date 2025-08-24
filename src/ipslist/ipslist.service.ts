@@ -53,8 +53,6 @@ export class IpslistService {
       .lean()
       .exec();
   }
-
-
   async getValueDataWithCountryCode(systemNames: string[]) {
     if (!Array.isArray(systemNames) || systemNames.length === 0) {
       throw new BadRequestException('systemNames must be a non-empty array.');
@@ -67,13 +65,45 @@ export class IpslistService {
       ? await this.valueDataModel.find({}).lean()
       : await this.valueDataModel.find({ systemName: { $in: systemNames } }).lean();
 
-    const mapped = results.map(item => ({
-      ...item,
-      countryCode: this.getCountryCode(item.geographicReach),
-    }));
+    // ✅ Add country code and group by geographicReach
+    const grouped = results.reduce((acc, item) => {
+      const key = item.geographicReach || 'UNKNOWN';
+      if (!acc[key]) {
+        acc[key] = {
+          geographicReach: key,
+          countryCode: this.getCountryCode(key),
+          systemNames: [],
+          values2020: 0,
+          values2021: 0,
+          values2022: 0,
+          values2023: 0,
+          values2024: 0,
+          values2025: 0,
+        };
+      }
+
+      acc[key].systemNames.push(item.systemName);
+
+      const fields = ['values2020', 'values2021', 'values2022', 'values2023', 'values2024', 'values2025'];
+      for (const field of fields) {
+        const val = item[field];
+        if (val !== null && val !== undefined && val !== '') {
+          const num = Number(val);
+          if (!isNaN(num)) {
+            acc[key][field] += num;
+          }
+        }
+      }
+
+      return acc;
+    }, {} as Record<string, any>);
+
+    const mapped = Object.values(grouped);
 
     if (includeTotal) {
-      const totalObj = mapped.find(item => item.systemName.toLowerCase() === 'total');
+      const totalObj = mapped.find(item =>
+        item.systemNames.some(name => name.toLowerCase() === 'total')
+      );
 
       const otherNames = systemNames
         .filter(name => name.toLowerCase() !== 'total')
@@ -83,10 +113,14 @@ export class IpslistService {
 
       if (otherNames.length === 0) {
         // Only 'total' was requested: return ALL other records
-        data = mapped.filter(item => item.systemName.toLowerCase() !== 'total');
+        data = mapped.filter(item =>
+          !item.systemNames.some(name => name.toLowerCase() === 'total')
+        );
       } else {
         // 'total' + other names: return only those others
-        data = mapped.filter(item => otherNames.includes(item.systemName.toLowerCase()));
+        data = mapped.filter(item =>
+          item.systemNames.some(name => otherNames.includes(name.toLowerCase()))
+        );
       }
 
       return {
@@ -109,13 +143,45 @@ export class IpslistService {
       ? await this.volumeDataModel.find({}).lean()
       : await this.volumeDataModel.find({ systemName: { $in: systemNames } }).lean();
 
-    const mapped = results.map(item => ({
-      ...item,
-      countryCode: this.getCountryCode(item.geographicReach),
-    }));
+    // ✅ Add country code and group by geographicReach
+    const grouped = results.reduce((acc, item) => {
+      const key = item.geographicReach || 'UNKNOWN';
+      if (!acc[key]) {
+        acc[key] = {
+          geographicReach: key,
+          countryCode: this.getCountryCode(key),
+          systemNames: [],
+          volumes2020: 0,
+          volumes2021: 0,
+          volumes2022: 0,
+          volumes2023: 0,
+          volumes2024: 0,
+          volumes2025: 0,
+        };
+      }
+
+      acc[key].systemNames.push(item.systemName);
+
+      const fields = ['volumes2020', 'volumes2021', 'volumes2022', 'volumes2023', 'volumes2024', 'volumes2025'];
+      for (const field of fields) {
+        const val = item[field];
+        if (val !== null && val !== undefined && val !== '') {
+          const num = Number(val);
+          if (!isNaN(num)) {
+            acc[key][field] += num;
+          }
+        }
+      }
+
+      return acc;
+    }, {} as Record<string, any>);
+
+    const mapped = Object.values(grouped);
 
     if (includeTotal) {
-      const totalObj = mapped.find(item => item.systemName.toLowerCase() === 'total');
+      const totalObj = mapped.find(item =>
+        item.systemNames.some(name => name.toLowerCase() === 'total')
+      );
 
       const otherNames = systemNames
         .filter(name => name.toLowerCase() !== 'total')
@@ -125,10 +191,14 @@ export class IpslistService {
 
       if (otherNames.length === 0) {
         // Only 'total' was requested: return ALL other records
-        data = mapped.filter(item => item.systemName.toLowerCase() !== 'total');
+        data = mapped.filter(item =>
+          !item.systemNames.some(name => name.toLowerCase() === 'total')
+        );
       } else {
         // 'total' + other names: return only those others
-        data = mapped.filter(item => otherNames.includes(item.systemName.toLowerCase()));
+        data = mapped.filter(item =>
+          item.systemNames.some(name => otherNames.includes(name.toLowerCase()))
+        );
       }
 
       return {
@@ -140,6 +210,7 @@ export class IpslistService {
     return mapped;
   }
 
+
   // async getValueDataWithCountryCode(systemNames: string[]) {
   //   if (!Array.isArray(systemNames) || systemNames.length === 0) {
   //     throw new BadRequestException('systemNames must be a non-empty array.');
@@ -147,15 +218,11 @@ export class IpslistService {
 
   //   const includeTotal = systemNames.some(name => name.toLowerCase() === 'total');
 
-  //   let results;
-  //   if (includeTotal) {
-  //     // Fetch all because we need the Total entry
-  //     results = await this.valueDataModel.find({}).lean();
-  //   } else {
-  //     results = await this.valueDataModel.find({ systemName: { $in: systemNames } }).lean();
-  //   }
+  //   // Fetch all if 'total' is present; else only requested
+  //   const results = includeTotal
+  //     ? await this.valueDataModel.find({}).lean()
+  //     : await this.valueDataModel.find({ systemName: { $in: systemNames } }).lean();
 
-  //   // Add country codes
   //   const mapped = results.map(item => ({
   //     ...item,
   //     countryCode: this.getCountryCode(item.geographicReach),
@@ -164,14 +231,19 @@ export class IpslistService {
   //   if (includeTotal) {
   //     const totalObj = mapped.find(item => item.systemName.toLowerCase() === 'total');
 
-  //     // Filter only the requested systemNames (excluding 'total')
-  //     const requestedOthers = systemNames
+  //     const otherNames = systemNames
   //       .filter(name => name.toLowerCase() !== 'total')
   //       .map(name => name.toLowerCase());
 
-  //     const data = mapped.filter(item =>
-  //       requestedOthers.includes(item.systemName.toLowerCase())
-  //     );
+  //     let data;
+
+  //     if (otherNames.length === 0) {
+  //       // Only 'total' was requested: return ALL other records
+  //       data = mapped.filter(item => item.systemName.toLowerCase() !== 'total');
+  //     } else {
+  //       // 'total' + other names: return only those others
+  //       data = mapped.filter(item => otherNames.includes(item.systemName.toLowerCase()));
+  //     }
 
   //     return {
   //       total: totalObj || null,
@@ -189,12 +261,9 @@ export class IpslistService {
 
   //   const includeTotal = systemNames.some(name => name.toLowerCase() === 'total');
 
-  //   let results;
-  //   if (includeTotal) {
-  //     results = await this.volumeDataModel.find({}).lean();
-  //   } else {
-  //     results = await this.volumeDataModel.find({ systemName: { $in: systemNames } }).lean();
-  //   }
+  //   const results = includeTotal
+  //     ? await this.volumeDataModel.find({}).lean()
+  //     : await this.volumeDataModel.find({ systemName: { $in: systemNames } }).lean();
 
   //   const mapped = results.map(item => ({
   //     ...item,
@@ -204,13 +273,19 @@ export class IpslistService {
   //   if (includeTotal) {
   //     const totalObj = mapped.find(item => item.systemName.toLowerCase() === 'total');
 
-  //     const requestedOthers = systemNames
+  //     const otherNames = systemNames
   //       .filter(name => name.toLowerCase() !== 'total')
   //       .map(name => name.toLowerCase());
 
-  //     const data = mapped.filter(item =>
-  //       requestedOthers.includes(item.systemName.toLowerCase())
-  //     );
+  //     let data;
+
+  //     if (otherNames.length === 0) {
+  //       // Only 'total' was requested: return ALL other records
+  //       data = mapped.filter(item => item.systemName.toLowerCase() !== 'total');
+  //     } else {
+  //       // 'total' + other names: return only those others
+  //       data = mapped.filter(item => otherNames.includes(item.systemName.toLowerCase()));
+  //     }
 
   //     return {
   //       total: totalObj || null,
@@ -220,6 +295,8 @@ export class IpslistService {
 
   //   return mapped;
   // }
+
+
 
 
 
@@ -389,410 +466,410 @@ export class IpslistService {
 
 
 
-// async getByCategoriesEnriched(
-//   categories: string[],
-//   filters?: any,
-//   ipsNameFilter?: string | string[]
-// ) {
-//   const validCategories = [
-//     'LIVE: DOMESTIC IPS',
-//     'DOMESTIC: IN DEVELOPMENT',
-//     'Countries with no domestic IPS activity',
-//     'LIVE: REGIONAL IPS',
-//     'REGIONAL: IN DEVELOPMENT',
-//     'IN PILOT PHASE',
-//     'Countries with no regional IPS activity',
-//   ];
+  // async getByCategoriesEnriched(
+  //   categories: string[],
+  //   filters?: any,
+  //   ipsNameFilter?: string | string[]
+  // ) {
+  //   const validCategories = [
+  //     'LIVE: DOMESTIC IPS',
+  //     'DOMESTIC: IN DEVELOPMENT',
+  //     'Countries with no domestic IPS activity',
+  //     'LIVE: REGIONAL IPS',
+  //     'REGIONAL: IN DEVELOPMENT',
+  //     'IN PILOT PHASE',
+  //     'Countries with no regional IPS activity',
+  //   ];
 
-//   // ✅ If no categories provided but filters exist, default to ['LIVE: DOMESTIC IPS']
-//   if ((!categories || categories.length === 0) && filters && Object.keys(filters).length > 0) {
-//     categories = ['LIVE: DOMESTIC IPS'];
-//   }
+  //   // ✅ If no categories provided but filters exist, default to ['LIVE: DOMESTIC IPS']
+  //   if ((!categories || categories.length === 0) && filters && Object.keys(filters).length > 0) {
+  //     categories = ['LIVE: DOMESTIC IPS'];
+  //   }
 
-//   // ✅ Validate categories
-//   if (!Array.isArray(categories) || categories.length === 0) {
-//     throw new BadRequestException('Categories must be a non-empty array.');
-//   }
+  //   // ✅ Validate categories
+  //   if (!Array.isArray(categories) || categories.length === 0) {
+  //     throw new BadRequestException('Categories must be a non-empty array.');
+  //   }
 
-//   categories.forEach((c) => {
-//     if (!validCategories.includes(c)) {
-//       throw new BadRequestException(`Invalid category: ${c}`);
-//     }
-//   });
+  //   categories.forEach((c) => {
+  //     if (!validCategories.includes(c)) {
+  //       throw new BadRequestException(`Invalid category: ${c}`);
+  //     }
+  //   });
 
-//   // ✅ If filters exist, ensure 'LIVE: DOMESTIC IPS' is included
-//   if (filters && Object.keys(filters).length > 0 && !categories.includes('LIVE: DOMESTIC IPS')) {
-//     categories.push('LIVE: DOMESTIC IPS');
-//   }
+  //   // ✅ If filters exist, ensure 'LIVE: DOMESTIC IPS' is included
+  //   if (filters && Object.keys(filters).length > 0 && !categories.includes('LIVE: DOMESTIC IPS')) {
+  //     categories.push('LIVE: DOMESTIC IPS');
+  //   }
 
-//   let allResults = [];
+  //   let allResults = [];
 
-//   for (const category of categories) {
-//     let ipsList = await this.ipsActivityModel.find({ category }).lean().exec();
-//     let enrichedData = [];
+  //   for (const category of categories) {
+  //     let ipsList = await this.ipsActivityModel.find({ category }).lean().exec();
+  //     let enrichedData = [];
 
-//     switch (category) {
-//       case 'LIVE: DOMESTIC IPS': {
-//         let filteredIpsList = ipsList;
+  //     switch (category) {
+  //       case 'LIVE: DOMESTIC IPS': {
+  //         let filteredIpsList = ipsList;
 
-//         // ✅ Apply GeneralData-based filters
-//         if (filters && Object.keys(filters).length > 0) {
-//           const filterQueries = [];
+  //         // ✅ Apply GeneralData-based filters
+  //         if (filters && Object.keys(filters).length > 0) {
+  //           const filterQueries = [];
 
-//           for (const [field, values] of Object.entries(filters)) {
-//             if (!Array.isArray(values)) continue;
-//             const regexConditions = values.map((v) => ({
-//               [field]: { $regex: v, $options: 'i' }
-//             }));
-//             filterQueries.push({ $or: regexConditions });
-//           }
+  //           for (const [field, values] of Object.entries(filters)) {
+  //             if (!Array.isArray(values)) continue;
+  //             const regexConditions = values.map((v) => ({
+  //               [field]: { $regex: v, $options: 'i' }
+  //             }));
+  //             filterQueries.push({ $or: regexConditions });
+  //           }
 
-//           // ✅ Get systemNames that match the filters in GeneralData
-//           const matchingGeneral = await this.generalDataModel
-//             .find({ $and: filterQueries })
-//             .select('systemName')
-//             .lean();
+  //           // ✅ Get systemNames that match the filters in GeneralData
+  //           const matchingGeneral = await this.generalDataModel
+  //             .find({ $and: filterQueries })
+  //             .select('systemName')
+  //             .lean();
 
-//           const matchingNames = new Set(matchingGeneral.map(g => g.systemName));
-//           filteredIpsList = ipsList.filter(ips => matchingNames.has(ips.ipsName));
-//         }
+  //           const matchingNames = new Set(matchingGeneral.map(g => g.systemName));
+  //           filteredIpsList = ipsList.filter(ips => matchingNames.has(ips.ipsName));
+  //         }
 
-//         // ✅ Enrich with Volume & Value sums
-//         enrichedData = await Promise.all(
-//           filteredIpsList.map(async (ips) => {
-//             const volume = await this.volumeDataModel.findOne({ systemName: ips.ipsName }).lean();
-//             const value = await this.valueDataModel.findOne({ systemName: ips.ipsName }).lean();
-//             const general = await this.generalDataModel.findOne({ systemName: ips.ipsName }).lean();
+  //         // ✅ Enrich with Volume & Value sums
+  //         enrichedData = await Promise.all(
+  //           filteredIpsList.map(async (ips) => {
+  //             const volume = await this.volumeDataModel.findOne({ systemName: ips.ipsName }).lean();
+  //             const value = await this.valueDataModel.findOne({ systemName: ips.ipsName }).lean();
+  //             const general = await this.generalDataModel.findOne({ systemName: ips.ipsName }).lean();
 
-//             // ✅ Helper to safely sum numeric fields
-//             const sumFields = (obj: any, fields: string[]) => {
-//               return fields.reduce((sum, field) => {
-//                 const val = obj?.[field];
-//                 if (val !== null && val !== undefined && val !== '') {
-//                   const num = Number(val);
-//                   if (!isNaN(num)) {
-//                     sum += num;
-//                   }
-//                 }
-//                 return sum;
-//               }, 0);
-//             };
+  //             // ✅ Helper to safely sum numeric fields
+  //             const sumFields = (obj: any, fields: string[]) => {
+  //               return fields.reduce((sum, field) => {
+  //                 const val = obj?.[field];
+  //                 if (val !== null && val !== undefined && val !== '') {
+  //                   const num = Number(val);
+  //                   if (!isNaN(num)) {
+  //                     sum += num;
+  //                   }
+  //                 }
+  //                 return sum;
+  //               }, 0);
+  //             };
 
-//             const totalVolumes = sumFields(volume, [
-//               'volumes2020',
-//               'volumes2021',
-//               'volumes2022',
-//               'volumes2023',
-//               'volumes2024',
-//               'volumes2025',
-//             ]);
+  //             const totalVolumes = sumFields(volume, [
+  //               'volumes2020',
+  //               'volumes2021',
+  //               'volumes2022',
+  //               'volumes2023',
+  //               'volumes2024',
+  //               'volumes2025',
+  //             ]);
 
-//             const totalValues = sumFields(value, [
-//               'values2020',
-//               'values2021',
-//               'values2022',
-//               'values2023',
-//               'values2024',
-//               'values2025',
-//             ]);
+  //             const totalValues = sumFields(value, [
+  //               'values2020',
+  //               'values2021',
+  //               'values2022',
+  //               'values2023',
+  //               'values2024',
+  //               'values2025',
+  //             ]);
 
-//             return {
-//               category,
-//               ipsName: ips.ipsName,
-//               geography: ips.geography,
-//               countryCode: this.getCountryCode(ips.geography),
-//               supportedUseCases: general?.supportedUseCases || null,
-//               volumes2024: totalVolumes || 0,
-//               values2024: totalValues || 0,
-//             };
-//           })
-//         );
-//         break;
-//       }
+  //             return {
+  //               category,
+  //               ipsName: ips.ipsName,
+  //               geography: ips.geography,
+  //               countryCode: this.getCountryCode(ips.geography),
+  //               supportedUseCases: general?.supportedUseCases || null,
+  //               volumes2024: totalVolumes || 0,
+  //               values2024: totalValues || 0,
+  //             };
+  //           })
+  //         );
+  //         break;
+  //       }
 
-//       case 'DOMESTIC: IN DEVELOPMENT':
-//       case 'Countries with no domestic IPS activity':
-//         enrichedData = ipsList.map((ips) => ({
-//           category,
-//           geography: ips.geography,
-//           countryCode: this.getCountryCode(ips.geography),
-//           status: ips.status || null,
-//         }));
-//         break;
+  //       case 'DOMESTIC: IN DEVELOPMENT':
+  //       case 'Countries with no domestic IPS activity':
+  //         enrichedData = ipsList.map((ips) => ({
+  //           category,
+  //           geography: ips.geography,
+  //           countryCode: this.getCountryCode(ips.geography),
+  //           status: ips.status || null,
+  //         }));
+  //         break;
 
-//       case 'LIVE: REGIONAL IPS':
-//       case 'REGIONAL: IN DEVELOPMENT':
-//       case 'IN PILOT PHASE': {
-//         // ✅ Apply ipsNameFilter if provided
-//         if (ipsNameFilter) {
-//           const filterNames = Array.isArray(ipsNameFilter)
-//             ? ipsNameFilter.map((v: string) => v.toLowerCase())
-//             : [String(ipsNameFilter).toLowerCase()];
+  //       case 'LIVE: REGIONAL IPS':
+  //       case 'REGIONAL: IN DEVELOPMENT':
+  //       case 'IN PILOT PHASE': {
+  //         // ✅ Apply ipsNameFilter if provided
+  //         if (ipsNameFilter) {
+  //           const filterNames = Array.isArray(ipsNameFilter)
+  //             ? ipsNameFilter.map((v: string) => v.toLowerCase())
+  //             : [String(ipsNameFilter).toLowerCase()];
 
-//           ipsList = ipsList.filter((ips) =>
-//             ips.ipsName && filterNames.includes(ips.ipsName.toLowerCase())
-//           );
-//         }
+  //           ipsList = ipsList.filter((ips) =>
+  //             ips.ipsName && filterNames.includes(ips.ipsName.toLowerCase())
+  //           );
+  //         }
 
-//         enrichedData = ipsList.flatMap((ips) => {
-//           const countries = this.splitCountries(ips.geographyCountries);
-//           return countries.map((country) => ({
-//             category,
-//             country,
-//             countryCode: this.getCountryCode(country),
-//             ipsName: ips.ipsName,
-//             ...(category !== 'LIVE: REGIONAL IPS' && { region: ips.region || null }),
-//           }));
-//         });
-//         break;
-//       }
+  //         enrichedData = ipsList.flatMap((ips) => {
+  //           const countries = this.splitCountries(ips.geographyCountries);
+  //           return countries.map((country) => ({
+  //             category,
+  //             country,
+  //             countryCode: this.getCountryCode(country),
+  //             ipsName: ips.ipsName,
+  //             ...(category !== 'LIVE: REGIONAL IPS' && { region: ips.region || null }),
+  //           }));
+  //         });
+  //         break;
+  //       }
 
-//       case 'Countries with no regional IPS activity':
-//         enrichedData = ipsList.map((ips) => ({
-//           category,
-//           geography: ips.geography,
-//           countryCode: this.getCountryCode(ips.geography),
-//         }));
-//         break;
-//     }
+  //       case 'Countries with no regional IPS activity':
+  //         enrichedData = ipsList.map((ips) => ({
+  //           category,
+  //           geography: ips.geography,
+  //           countryCode: this.getCountryCode(ips.geography),
+  //         }));
+  //         break;
+  //     }
 
-//     allResults.push({
-//       category,
-//       total: enrichedData.length,
-//       data: enrichedData,
-//     });
-//   }
+  //     allResults.push({
+  //       category,
+  //       total: enrichedData.length,
+  //       data: enrichedData,
+  //     });
+  //   }
 
-//   return {
-//     categories,
-//     totalCategories: categories.length,
-//     results: allResults,
-//   };
-// }
+  //   return {
+  //     categories,
+  //     totalCategories: categories.length,
+  //     results: allResults,
+  //   };
+  // }
 
 
 
-async getByCategoriesEnriched(
-  categories: string[],
-  filters?: any,
-  ipsNameFilter?: string | string[]
-) {
-  const validCategories = [
-    'LIVE: DOMESTIC IPS',
-    'DOMESTIC: IN DEVELOPMENT',
-    'Countries with no domestic IPS activity',
+  async getByCategoriesEnriched(
+    categories: string[],
+    filters?: any,
+    ipsNameFilter?: string | string[]
+  ) {
+    const validCategories = [
+      'LIVE: DOMESTIC IPS',
+      'DOMESTIC: IN DEVELOPMENT',
+      'Countries with no domestic IPS activity',
 
-    'LIVE: REGIONAL IPS',
-    'REGIONAL: IN DEVELOPMENT',
-    'IN PILOT PHASE',
-    'Countries with no regional IPS activity',
-  ];
+      'LIVE: REGIONAL IPS',
+      'REGIONAL: IN DEVELOPMENT',
+      'IN PILOT PHASE',
+      'Countries with no regional IPS activity',
+    ];
 
-  // ✅ If no categories provided but filters exist, default to ['LIVE: DOMESTIC IPS']
-  if ((!categories || categories.length === 0) && filters && Object.keys(filters).length > 0) {
-    categories = ['LIVE: DOMESTIC IPS'];
-  }
-
-  // ✅ Validate categories
-  if (!Array.isArray(categories) || categories.length === 0) {
-    throw new BadRequestException('Categories must be a non-empty array.');
-  }
-
-  categories.forEach((c) => {
-    if (!validCategories.includes(c)) {
-      throw new BadRequestException(`Invalid category: ${c}`);
-    }
-  });
-
-  // ✅ If filters exist, ensure 'LIVE: DOMESTIC IPS' is included
-  if (filters && Object.keys(filters).length > 0 && !categories.includes('LIVE: DOMESTIC IPS')) {
-    categories.push('LIVE: DOMESTIC IPS');
-  }
-
-  let allResults = [];
-
-  for (const category of categories) {
-    let ipsList = await this.ipsActivityModel.find({ category }).lean().exec();
-    let enrichedData = [];
-
-    switch (category) {
-      // ✅ LIVE: DOMESTIC IPS with aggregation
-      case 'LIVE: DOMESTIC IPS': {
-        let filteredIpsList = ipsList;
-
-        // ✅ Apply GeneralData-based filters
-        if (filters && Object.keys(filters).length > 0) {
-          const filterQueries = [];
-
-          for (const [field, values] of Object.entries(filters)) {
-            if (!Array.isArray(values)) continue;
-            const regexConditions = values.map((v) => ({
-              [field]: { $regex: v, $options: 'i' }
-            }));
-            filterQueries.push({ $or: regexConditions });
-          }
-
-          // ✅ Get systemNames that match the filters in GeneralData
-          const matchingGeneral = await this.generalDataModel
-            .find({ $and: filterQueries })
-            .select('systemName')
-            .lean();
-
-          const matchingNames = new Set(matchingGeneral.map(g => g.systemName));
-          filteredIpsList = ipsList.filter(ips => matchingNames.has(ips.ipsName));
-        }
-
-        // ✅ Helper to safely sum numeric fields
-        const sumFields = (obj: any, fields: string[]) => {
-          return fields.reduce((sum, field) => {
-            const val = obj?.[field];
-            if (val !== null && val !== undefined && val !== '') {
-              const num = Number(val);
-              if (!isNaN(num)) {
-                sum += num;
-              }
-            }
-            return sum;
-          }, 0);
-        };
-
-        // ✅ Step 1: Fetch enriched data for each IPS
-        const rawEnrichedData = await Promise.all(
-          filteredIpsList.map(async (ips) => {
-            const volume = await this.volumeDataModel.findOne({ systemName: ips.ipsName }).lean();
-            const value = await this.valueDataModel.findOne({ systemName: ips.ipsName }).lean();
-            const general = await this.generalDataModel.findOne({ systemName: ips.ipsName }).lean();
-
-            const totalVolumes = sumFields(volume, [
-              'volumes2020',
-              'volumes2021',
-              'volumes2022',
-              'volumes2023',
-              'volumes2024',
-              'volumes2025',
-            ]);
-
-            const totalValues = sumFields(value, [
-              'values2020',
-              'values2021',
-              'values2022',
-              'values2023',
-              'values2024',
-              'values2025',
-            ]);
-
-            return {
-              geography: ips.geography,
-              countryCode: this.getCountryCode(ips.geography),
-              ipsName: ips.ipsName,
-              supportedUseCases: general?.supportedUseCases || null,
-              volumes2024: totalVolumes || 0,
-              values2024: totalValues || 0,
-            };
-          })
-        );
-
-        // ✅ Step 2: Group by geography and aggregate
-        const groupedData = rawEnrichedData.reduce((acc, item) => {
-          const existing = acc[item.geography];
-          if (existing) {
-            existing.volumes2024 += item.volumes2024;
-            existing.values2024 += item.values2024;
-            existing.ipsNames.push(item.ipsName);
-            if (item.supportedUseCases) {
-              existing.supportedUseCasesSet.add(item.supportedUseCases);
-            }
-          } else {
-            acc[item.geography] = {
-              category,
-              geography: item.geography,
-              countryCode: item.countryCode,
-              volumes2024: item.volumes2024,
-              values2024: item.values2024,
-              ipsNames: [item.ipsName],
-              supportedUseCasesSet: new Set(
-                item.supportedUseCases ? [item.supportedUseCases] : []
-              ),
-            };
-          }
-          return acc;
-        }, {} as Record<string, any>);
-
-        // ✅ Convert sets to arrays and finalize
-        enrichedData = Object.values(groupedData).map((item: any) => ({
-          category: item.category,
-          geography: item.geography,
-          countryCode: item.countryCode,
-          volumes2024: item.volumes2024,
-          values2024: item.values2024,
-          ipsNames: item.ipsNames,
-          supportedUseCases: Array.from(item.supportedUseCasesSet),
-        }));
-        break;
-      }
-
-      // ✅ Domestic In Development & No Domestic
-      case 'DOMESTIC: IN DEVELOPMENT':
-      case 'Countries with no domestic IPS activity':
-        enrichedData = ipsList.map((ips) => ({
-          category,
-          geography: ips.geography,
-          countryCode: this.getCountryCode(ips.geography),
-          status: ips.status || null,
-        }));
-        break;
-
-      // ✅ Regional categories
-      case 'LIVE: REGIONAL IPS':
-      case 'REGIONAL: IN DEVELOPMENT':
-      case 'IN PILOT PHASE': {
-        // ✅ Apply ipsNameFilter if provided
-        if (ipsNameFilter) {
-          const filterNames = Array.isArray(ipsNameFilter)
-            ? ipsNameFilter.map((v: string) => v.toLowerCase())
-            : [String(ipsNameFilter).toLowerCase()];
-
-          ipsList = ipsList.filter((ips) =>
-            ips.ipsName && filterNames.includes(ips.ipsName.toLowerCase())
-          );
-        }
-
-        enrichedData = ipsList.flatMap((ips) => {
-          const countries = this.splitCountries(ips.geographyCountries);
-          return countries.map((country) => ({
-            category,
-            country,
-            countryCode: this.getCountryCode(country),
-            ipsName: ips.ipsName,
-            ...(category !== 'LIVE: REGIONAL IPS' && { region: ips.region || null }),
-          }));
-        });
-        break;
-      }
-
-      // ✅ Countries with no regional IPS activity
-      case 'Countries with no regional IPS activity':
-        enrichedData = ipsList.map((ips) => ({
-          category,
-          geography: ips.geography,
-          countryCode: this.getCountryCode(ips.geography),
-        }));
-        break;
+    // ✅ If no categories provided but filters exist, default to ['LIVE: DOMESTIC IPS']
+    if ((!categories || categories.length === 0) && filters && Object.keys(filters).length > 0) {
+      categories = ['LIVE: DOMESTIC IPS'];
     }
 
-    allResults.push({
-      category,
-      total: enrichedData.length,
-      data: enrichedData,
+    // ✅ Validate categories
+    if (!Array.isArray(categories) || categories.length === 0) {
+      throw new BadRequestException('Categories must be a non-empty array.');
+    }
+
+    categories.forEach((c) => {
+      if (!validCategories.includes(c)) {
+        throw new BadRequestException(`Invalid category: ${c}`);
+      }
     });
-  }
 
-  return {
-    categories,
-    totalCategories: categories.length,
-    results: allResults,
-  };
-}
+    // ✅ If filters exist, ensure 'LIVE: DOMESTIC IPS' is included
+    if (filters && Object.keys(filters).length > 0 && !categories.includes('LIVE: DOMESTIC IPS')) {
+      categories.push('LIVE: DOMESTIC IPS');
+    }
+
+    let allResults = [];
+
+    for (const category of categories) {
+      let ipsList = await this.ipsActivityModel.find({ category }).lean().exec();
+      let enrichedData = [];
+
+      switch (category) {
+        // ✅ LIVE: DOMESTIC IPS with aggregation
+        case 'LIVE: DOMESTIC IPS': {
+          let filteredIpsList = ipsList;
+
+          // ✅ Apply GeneralData-based filters
+          if (filters && Object.keys(filters).length > 0) {
+            const filterQueries = [];
+
+            for (const [field, values] of Object.entries(filters)) {
+              if (!Array.isArray(values)) continue;
+              const regexConditions = values.map((v) => ({
+                [field]: { $regex: v, $options: 'i' }
+              }));
+              filterQueries.push({ $or: regexConditions });
+            }
+
+            // ✅ Get systemNames that match the filters in GeneralData
+            const matchingGeneral = await this.generalDataModel
+              .find({ $and: filterQueries })
+              .select('systemName')
+              .lean();
+
+            const matchingNames = new Set(matchingGeneral.map(g => g.systemName));
+            filteredIpsList = ipsList.filter(ips => matchingNames.has(ips.ipsName));
+          }
+
+          // ✅ Helper to safely sum numeric fields
+          const sumFields = (obj: any, fields: string[]) => {
+            return fields.reduce((sum, field) => {
+              const val = obj?.[field];
+              if (val !== null && val !== undefined && val !== '') {
+                const num = Number(val);
+                if (!isNaN(num)) {
+                  sum += num;
+                }
+              }
+              return sum;
+            }, 0);
+          };
+
+          // ✅ Step 1: Fetch enriched data for each IPS
+          const rawEnrichedData = await Promise.all(
+            filteredIpsList.map(async (ips) => {
+              const volume = await this.volumeDataModel.findOne({ systemName: ips.ipsName }).lean();
+              const value = await this.valueDataModel.findOne({ systemName: ips.ipsName }).lean();
+              const general = await this.generalDataModel.findOne({ systemName: ips.ipsName }).lean();
+
+              const totalVolumes = sumFields(volume, [
+                'volumes2020',
+                'volumes2021',
+                'volumes2022',
+                'volumes2023',
+                'volumes2024',
+                'volumes2025',
+              ]);
+
+              const totalValues = sumFields(value, [
+                'values2020',
+                'values2021',
+                'values2022',
+                'values2023',
+                'values2024',
+                'values2025',
+              ]);
+
+              return {
+                geography: ips.geography,
+                countryCode: this.getCountryCode(ips.geography),
+                ipsName: ips.ipsName,
+                supportedUseCases: general?.supportedUseCases || null,
+                volumes2024: totalVolumes || 0,
+                values2024: totalValues || 0,
+              };
+            })
+          );
+
+          // ✅ Step 2: Group by geography and aggregate
+          const groupedData = rawEnrichedData.reduce((acc, item) => {
+            const existing = acc[item.geography];
+            if (existing) {
+              existing.volumes2024 += item.volumes2024;
+              existing.values2024 += item.values2024;
+              existing.ipsNames.push(item.ipsName);
+              if (item.supportedUseCases) {
+                existing.supportedUseCasesSet.add(item.supportedUseCases);
+              }
+            } else {
+              acc[item.geography] = {
+                category,
+                geography: item.geography,
+                countryCode: item.countryCode,
+                volumes2024: item.volumes2024,
+                values2024: item.values2024,
+                ipsNames: [item.ipsName],
+                supportedUseCasesSet: new Set(
+                  item.supportedUseCases ? [item.supportedUseCases] : []
+                ),
+              };
+            }
+            return acc;
+          }, {} as Record<string, any>);
+
+          // ✅ Convert sets to arrays and finalize
+          enrichedData = Object.values(groupedData).map((item: any) => ({
+            category: item.category,
+            geography: item.geography,
+            countryCode: item.countryCode,
+            volumes2024: item.volumes2024,
+            values2024: item.values2024,
+            ipsNames: item.ipsNames,
+            supportedUseCases: Array.from(item.supportedUseCasesSet),
+          }));
+          break;
+        }
+
+        // ✅ Domestic In Development & No Domestic
+        case 'DOMESTIC: IN DEVELOPMENT':
+        case 'Countries with no domestic IPS activity':
+          enrichedData = ipsList.map((ips) => ({
+            category,
+            geography: ips.geography,
+            countryCode: this.getCountryCode(ips.geography),
+            status: ips.status || null,
+          }));
+          break;
+
+        // ✅ Regional categories
+        case 'LIVE: REGIONAL IPS':
+        case 'REGIONAL: IN DEVELOPMENT':
+        case 'IN PILOT PHASE': {
+          // ✅ Apply ipsNameFilter if provided
+          if (ipsNameFilter) {
+            const filterNames = Array.isArray(ipsNameFilter)
+              ? ipsNameFilter.map((v: string) => v.toLowerCase())
+              : [String(ipsNameFilter).toLowerCase()];
+
+            ipsList = ipsList.filter((ips) =>
+              ips.ipsName && filterNames.includes(ips.ipsName.toLowerCase())
+            );
+          }
+
+          enrichedData = ipsList.flatMap((ips) => {
+            const countries = this.splitCountries(ips.geographyCountries);
+            return countries.map((country) => ({
+              category,
+              country,
+              countryCode: this.getCountryCode(country),
+              ipsName: ips.ipsName,
+              ...(category !== 'LIVE: REGIONAL IPS' && { region: ips.region || null }),
+            }));
+          });
+          break;
+        }
+
+        // ✅ Countries with no regional IPS activity
+        case 'Countries with no regional IPS activity':
+          enrichedData = ipsList.map((ips) => ({
+            category,
+            geography: ips.geography,
+            countryCode: this.getCountryCode(ips.geography),
+          }));
+          break;
+      }
+
+      allResults.push({
+        category,
+        total: enrichedData.length,
+        data: enrichedData,
+      });
+    }
+
+    return {
+      categories,
+      totalCategories: categories.length,
+      results: allResults,
+    };
+  }
 
   private splitCountries(geoCountries?: string) {
     if (!geoCountries) return [];
