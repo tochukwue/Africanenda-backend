@@ -586,15 +586,26 @@ async getByCategoriesEnriched(
     'Countries with no regional IPS activity',
   ];
 
+  // ✅ If no categories provided but filters exist, default to ['LIVE: DOMESTIC IPS']
+  if ((!categories || categories.length === 0) && filters && Object.keys(filters).length > 0) {
+    categories = ['LIVE: DOMESTIC IPS'];
+  }
+
   // ✅ Validate categories
   if (!Array.isArray(categories) || categories.length === 0) {
     throw new BadRequestException('Categories must be a non-empty array.');
   }
+
   categories.forEach((c) => {
     if (!validCategories.includes(c)) {
       throw new BadRequestException(`Invalid category: ${c}`);
     }
   });
+
+  // ✅ If filters exist, ensure 'LIVE: DOMESTIC IPS' is included
+  if (filters && Object.keys(filters).length > 0 && !categories.includes('LIVE: DOMESTIC IPS')) {
+    categories.push('LIVE: DOMESTIC IPS');
+  }
 
   let allResults = [];
 
