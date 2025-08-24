@@ -573,7 +573,7 @@ export class IpslistService {
   //   };
   // }
 
-  async getByCategoriesEnriched(
+async getByCategoriesEnriched(
   categories: string[],
   filters?: any,
   ipsNameFilter?: string | string[]
@@ -588,17 +588,23 @@ export class IpslistService {
     'Countries with no regional IPS activity',
   ];
 
+  // ✅ If no categories provided but filters exist, default to ['LIVE: DOMESTIC IPS']
+  if ((!categories || categories.length === 0) && filters && Object.keys(filters).length > 0) {
+    categories = ['LIVE: DOMESTIC IPS'];
+  }
+
   // ✅ Validate categories
   if (!Array.isArray(categories) || categories.length === 0) {
     throw new BadRequestException('Categories must be a non-empty array.');
   }
+
   categories.forEach((c) => {
     if (!validCategories.includes(c)) {
       throw new BadRequestException(`Invalid category: ${c}`);
     }
   });
 
-  // ✅ If filters exist, ensure 'LIVE: DOMESTIC IPS' is included in categories
+  // ✅ If filters exist, ensure 'LIVE: DOMESTIC IPS' is included
   if (filters && Object.keys(filters).length > 0 && !categories.includes('LIVE: DOMESTIC IPS')) {
     categories.push('LIVE: DOMESTIC IPS');
   }
@@ -613,41 +619,44 @@ export class IpslistService {
       case 'LIVE: DOMESTIC IPS': {
         let filteredIpsList = ipsList;
 
-        // ✅ Apply GeneralData-based filters if provided
+        // ✅ Apply GeneralData-based filters
         if (filters && Object.keys(filters).length > 0) {
           const filterQueries = [];
 
           for (const [field, values] of Object.entries(filters)) {
             if (!Array.isArray(values)) continue;
             const regexConditions = values.map((v) => ({
-              [field]: { $regex: v, $options: 'i' },
+              [field]: { $regex: v, $options: 'i' }
             }));
             filterQueries.push({ $or: regexConditions });
           }
 
-          // ✅ Get matching systemNames from GeneralData
+          // ✅ Get systemNames that match the filters in GeneralData
           const matchingGeneral = await this.generalDataModel
             .find({ $and: filterQueries })
             .select('systemName')
             .lean();
 
-          const matchingNames = new Set(matchingGeneral.map((g) => g.systemName));
-          filteredIpsList = ipsList.filter((ips) => matchingNames.has(ips.ipsName));
+          const matchingNames = new Set(matchingGeneral.map(g => g.systemName));
+          filteredIpsList = ipsList.filter(ips => matchingNames.has(ips.ipsName));
         }
 
-        // ✅ Enrich data with totals
+        // ✅ Enrich with Volume & Value sums
         enrichedData = await Promise.all(
           filteredIpsList.map(async (ips) => {
             const volume = await this.volumeDataModel.findOne({ systemName: ips.ipsName }).lean();
             const value = await this.valueDataModel.findOne({ systemName: ips.ipsName }).lean();
             const general = await this.generalDataModel.findOne({ systemName: ips.ipsName }).lean();
 
+            // ✅ Helper to safely sum numeric fields
             const sumFields = (obj: any, fields: string[]) => {
               return fields.reduce((sum, field) => {
                 const val = obj?.[field];
                 if (val !== null && val !== undefined && val !== '') {
                   const num = Number(val);
-                  if (!isNaN(num)) sum += num;
+                  if (!isNaN(num)) {
+                    sum += num;
+                  }
                 }
                 return sum;
               }, 0);
@@ -677,8 +686,8 @@ export class IpslistService {
               geography: ips.geography,
               countryCode: this.getCountryCode(ips.geography),
               supportedUseCases: general?.supportedUseCases || null,
-              volumesTotal: totalVolumes || 0,
-              valuesTotal: totalValues || 0,
+              volumes2024: totalVolumes || 0,
+              values2024: totalValues || 0,
             };
           })
         );
@@ -698,6 +707,7 @@ export class IpslistService {
       case 'LIVE: REGIONAL IPS':
       case 'REGIONAL: IN DEVELOPMENT':
       case 'IN PILOT PHASE': {
+        // ✅ Apply ipsNameFilter if provided
         if (ipsNameFilter) {
           const filterNames = Array.isArray(ipsNameFilter)
             ? ipsNameFilter.map((v: string) => v.toLowerCase())
@@ -743,6 +753,7 @@ export class IpslistService {
     results: allResults,
   };
 }
+
 
 
 
