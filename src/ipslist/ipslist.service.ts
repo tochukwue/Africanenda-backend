@@ -325,12 +325,14 @@ export class IpslistService {
       'REGIONAL: IN DEVELOPMENT': 'IN-DEVELOPMENT',
       'IN PILOT PHASE': 'PILOT',
       'Countries with no regional IPS activity': 'NO IPS ACTIVITY',
+      'IN PILOT': 'PILOT',
     };
 
     const domesticCategories = [
       'LIVE: DOMESTIC IPS',
       'DOMESTIC: IN DEVELOPMENT',
       'Countries with no domestic IPS activity',
+      'IN PILOT',
     ];
 
     const regionalCategories = [
