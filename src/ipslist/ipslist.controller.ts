@@ -56,8 +56,46 @@ export class IpslistController {
   async getByGeographicReach(@Query('geographicReach') geographicReach: string) {
     return this.ipslistService.getByGeographicReach(geographicReach);
   }
+  // @Post('value-data/graph/value')
+  // @ApiOperation({ summary: 'Get ValueData with country codes by system names' })
+  // @ApiBody({
+  //   schema: {
+  //     type: 'object',
+  //     properties: {
+  //       systemNames: {
+  //         type: 'array',
+  //         items: { type: 'string' },
+  //         example: ['eKash', 'EIPS']
+  //       }
+  //     }
+  //   }
+  // })
+  // async getValueData(@Body('systemNames') systemNames: string[]) {
+  //   return this.ipslistService.getValueDataWithCountryCode(systemNames);
+  // }
+
+  // @Post('volume-data/graph/volume')
+  // @ApiOperation({ summary: 'Get VolumeData with country codes by system names' })
+  // @ApiBody({
+  //   schema: {
+  //     type: 'object',
+  //     properties: {
+  //       systemNames: {
+  //         type: 'array',
+  //         items: { type: 'string' },
+  //         example: ['eKash', 'EIPS']
+  //       }
+  //     }
+  //   }
+  // })
+  // async getVolumeData(@Body('systemNames') systemNames: string[]) {
+  //   return this.ipslistService.getVolumeDataWithCountryCode(systemNames);
+  // }
+
+
+  
   @Post('value-data/graph/value')
-  @ApiOperation({ summary: 'Get ValueData with country codes by system names' })
+  @ApiOperation({ summary: 'Get ValueData with country codes by system names and optional year filtering' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -65,17 +103,37 @@ export class IpslistController {
         systemNames: {
           type: 'array',
           items: { type: 'string' },
-          example: ['eKash', 'EIPS']
+          example: ['eKash', 'EIPS', 'total'],
+          description: 'List of system names. Include "total" for aggregated data.'
+        },
+        startYear: {
+          type: 'integer',
+          example: 2021,
+          description: 'Optional start year (e.g., 2020)'
+        },
+        endYear: {
+          type: 'integer',
+          example: 2023,
+          description: 'Optional end year (e.g., 2025)'
         }
-      }
+      },
+      required: ['systemNames']
     }
   })
-  async getValueData(@Body('systemNames') systemNames: string[]) {
-    return this.ipslistService.getValueDataWithCountryCode(systemNames);
+  async getValueData(
+    @Body('systemNames') systemNames: string[],
+    @Body('startYear') startYear?: number,
+    @Body('endYear') endYear?: number
+  ) {
+    if (!Array.isArray(systemNames) || systemNames.length === 0) {
+      throw new BadRequestException('systemNames must be a non-empty array.');
+    }
+
+    return this.ipslistService.getValueDataWithCountryCode(systemNames, startYear, endYear);
   }
 
   @Post('volume-data/graph/volume')
-  @ApiOperation({ summary: 'Get VolumeData with country codes by system names' })
+  @ApiOperation({ summary: 'Get VolumeData with country codes by system names and optional year filtering' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -83,13 +141,33 @@ export class IpslistController {
         systemNames: {
           type: 'array',
           items: { type: 'string' },
-          example: ['eKash', 'EIPS']
+          example: ['eKash', 'EIPS', 'total'],
+          description: 'List of system names. Include "total" for aggregated data.'
+        },
+        startYear: {
+          type: 'integer',
+          example: 2021,
+          description: 'Optional start year (e.g., 2020)'
+        },
+        endYear: {
+          type: 'integer',
+          example: 2023,
+          description: 'Optional end year (e.g., 2025)'
         }
-      }
+      },
+      required: ['systemNames']
     }
   })
-  async getVolumeData(@Body('systemNames') systemNames: string[]) {
-    return this.ipslistService.getVolumeDataWithCountryCode(systemNames);
+  async getVolumeData(
+    @Body('systemNames') systemNames: string[],
+    @Body('startYear') startYear?: number,
+    @Body('endYear') endYear?: number
+  ) {
+    if (!Array.isArray(systemNames) || systemNames.length === 0) {
+      throw new BadRequestException('systemNames must be a non-empty array.');
+    }
+
+    return this.ipslistService.getVolumeDataWithCountryCode(systemNames, startYear, endYear);
   }
 
 
