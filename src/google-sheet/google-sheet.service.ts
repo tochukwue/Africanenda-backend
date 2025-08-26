@@ -44,7 +44,6 @@ async fetchAndSyncGeneralData() {
     });
 
     const sheets = google.sheets({ version: 'v4', auth });
-
     const spreadsheetId = '1VBLgF2JRCHh4RKPHhTB66yCD-Zc5Ru0wCxX3ZEDtTR0';
 
     /** ✅ First: Sync "2025 data" sheet */
@@ -59,15 +58,19 @@ async fetchAndSyncGeneralData() {
       const dataRowsMain = rowsMain.slice(1);
 
       const headerMap: Record<string, string> = {
-        'IPS type': 'ipsType',
-        'Governance typology (Industry, PPP, Central Bank led)': 'governanceTypology',
-        // Add more mappings if required
+        'ips type': 'ipsType',
+        'governance typology (industry, ppp, central bank led)': 'governanceTypology',
+        'api use function': 'apiUseFunction',
+        'third party connections enabled (y/n)': 'thirdPartyConnectionsEnabled',
+        'real-time payment confirmation message enabled (y/n)': 'realTimePaymentConfirmation',
+        'pull "request to pay" enabled (y/n)': 'pullRequestToPayEnabled',
       };
 
       for (const row of dataRowsMain) {
         const rowData: any = {};
         headersMain.forEach((header, index) => {
-          const normalizedHeader = headerMap[header] || this.camelCase(header);
+          const cleanedHeader = header.trim().toLowerCase();
+          const normalizedHeader = headerMap[cleanedHeader] || this.camelCase(cleanedHeader);
           rowData[normalizedHeader] = row[index] || '';
         });
 
@@ -82,36 +85,37 @@ async fetchAndSyncGeneralData() {
     }
 
     /** ✅ Second: Sync "Inclusivity Spectrum Analysis" sheet */
-    const rangeInclusivity = 'Inclusivity Spectrum Analysis!A5:Z'; // Starts from row 5
-    const resInclusivity = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: rangeInclusivity,
-    });
+    const rangeInclusivity = 'Inclusivity Spectrum Analysis!A1:AZ';
+    const resInclusivity = await sheets.spreadsheets.values.get({ spreadsheetId, range: rangeInclusivity });
     const rowsInclusivity = resInclusivity.data.values;
 
-    if (!rowsInclusivity || rowsInclusivity.length < 2) {
+    if (!rowsInclusivity || rowsInclusivity.length < 6) {
       this.logger.warn('No data found in "Inclusivity Spectrum Analysis" sheet.');
     } else {
-      const headersInc = rowsInclusivity[0];
-      const dataRowsInc = rowsInclusivity.slice(1);
+      const headersInc = rowsInclusivity[4];
+      const dataRowsInc = rowsInclusivity.slice(5);
 
       const systemNameIndex = headersInc.findIndex(h => h.trim().toLowerCase() === 'system name');
-      const statusIndex = headersInc.findIndex(h => h.trim().toLowerCase() === 'status');
+      const statusIndexes = headersInc
+        .map((h, i) => (h.trim().toLowerCase() === 'status' ? i : -1))
+        .filter(i => i !== -1);
 
-      if (systemNameIndex === -1 || statusIndex === -1) {
-        throw new Error('"System name" or "Status" column not found in Inclusivity sheet.');
+      if (systemNameIndex === -1 || statusIndexes.length === 0) {
+        throw new Error('"System name" or "Status" column not found in Inclusivity Spectrum Analysis sheet.');
       }
+
+      const statusIndex = statusIndexes[0];
 
       for (const row of dataRowsInc) {
         const systemName = row[systemNameIndex]?.trim();
-        const status = row[statusIndex]?.trim();
+        const statusValue = row[statusIndex]?.trim();
 
         if (!systemName) continue;
 
         await this.generalDataModel.updateOne(
-          { systemName: systemName },
-          { $set: { inclusivityRanking: status } }, // ✅ Update inclusivityRanking instead
-          { upsert: false } // Do not create new record if it doesn't exist
+          { systemName },
+          { $set: { inclusivityRanking: statusValue || '' } },
+          { upsert: false }
         );
       }
 
@@ -122,65 +126,100 @@ async fetchAndSyncGeneralData() {
   }
 }
 
-//   async fetchAndSyncGeneralData() {
-//   try {
-//     const credentials = JSON.parse(
-//       fs.readFileSync(
-//         path.resolve(__dirname, '../../../config/authentication-411609-dcd87bcd1c0b.json'),
-//         'utf8'
-//       )
-//     );
-
-//     const auth = new google.auth.GoogleAuth({
-//       credentials,
-//       scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-//     });
-
-//     const sheets = google.sheets({ version: 'v4', auth });
-
-//     const spreadsheetId = '1VBLgF2JRCHh4RKPHhTB66yCD-Zc5Ru0wCxX3ZEDtTR0';
-//     const range = '2025 data!A1:AZ'; // adjust range if needed
-
-//     const res = await sheets.spreadsheets.values.get({ spreadsheetId, range });
-//     const rows = res.data.values;
-
-//     if (!rows || rows.length < 2) {
-//       this.logger.warn('No data found in the sheet.');
-//       return;
-//     }
-
-//     const headers = rows[0];
-//     const dataRows = rows.slice(1);
-
-//     // Map sheet headers to schema field names
-//     const headerMap: Record<string, string> = {
-//       'IPS type': 'ipsType',
-//       'Governance typology (Industry, PPP, Central Bank led)': 'governanceTypology',
-//       // Add more mappings if required
-//     };
-
-//     for (const row of dataRows) {
-//       const rowData: any = {};
-//       headers.forEach((header, index) => {
-//         const normalizedHeader = headerMap[header] || this.camelCase(header);
-//         rowData[normalizedHeader] = row[index] || '';
-//       });
-
-//       // Use systemName as unique identifier for upsert
-//       await this.generalDataModel.updateOne(
-//         { systemName: rowData.systemName },
-//         { $set: rowData },
-//         { upsert: true }
-//       );
-//     }
-
-//     this.logger.log(`Synced ${dataRows.length} rows from Google Sheets.`);
-//   } catch (error) {
-//     this.logger.error('Error fetching data from Google Sheets', error);
-//   }
-// }
 
 
+  // async fetchAndSyncGeneralData() {
+  //   try {
+  //     const credentials = JSON.parse(
+  //       fs.readFileSync(
+  //         path.resolve(__dirname, '../../../config/authentication-411609-dcd87bcd1c0b.json'),
+  //         'utf8'
+  //       )
+  //     );
+
+  //     const auth = new google.auth.GoogleAuth({
+  //       credentials,
+  //       scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+  //     });
+
+  //     const sheets = google.sheets({ version: 'v4', auth });
+
+  //     const spreadsheetId = '1VBLgF2JRCHh4RKPHhTB66yCD-Zc5Ru0wCxX3ZEDtTR0';
+
+  //     /** ✅ First: Sync "2025 data" sheet */
+  //     const rangeMain = '2025 data!A1:AZ';
+  //     const resMain = await sheets.spreadsheets.values.get({ spreadsheetId, range: rangeMain });
+  //     const rowsMain = resMain.data.values;
+
+  //     if (!rowsMain || rowsMain.length < 2) {
+  //       this.logger.warn('No data found in "2025 data" sheet.');
+  //     } else {
+  //       const headersMain = rowsMain[0];
+  //       const dataRowsMain = rowsMain.slice(1);
+
+  //       const headerMap: Record<string, string> = {
+  //         'IPS type': 'ipsType',
+  //         'Governance typology (Industry, PPP, Central Bank led)': 'governanceTypology',
+  //         // Add more mappings if required
+  //       };
+
+  //       for (const row of dataRowsMain) {
+  //         const rowData: any = {};
+  //         headersMain.forEach((header, index) => {
+  //           const normalizedHeader = headerMap[header] || this.camelCase(header);
+  //           rowData[normalizedHeader] = row[index] || '';
+  //         });
+
+  //         await this.generalDataModel.updateOne(
+  //           { systemName: rowData.systemName },
+  //           { $set: rowData },
+  //           { upsert: true }
+  //         );
+  //       }
+
+  //       this.logger.log(`Synced ${dataRowsMain.length} rows from "2025 data" sheet.`);
+  //     }
+
+  //     /** ✅ Second: Sync "Inclusivity Spectrum Analysis" sheet */
+  //     const rangeInclusivity = 'Inclusivity Spectrum Analysis!A5:Z'; // Starts from row 5
+  //     const resInclusivity = await sheets.spreadsheets.values.get({
+  //       spreadsheetId,
+  //       range: rangeInclusivity,
+  //     });
+  //     const rowsInclusivity = resInclusivity.data.values;
+
+  //     if (!rowsInclusivity || rowsInclusivity.length < 2) {
+  //       this.logger.warn('No data found in "Inclusivity Spectrum Analysis" sheet.');
+  //     } else {
+  //       const headersInc = rowsInclusivity[0];
+  //       const dataRowsInc = rowsInclusivity.slice(1);
+
+  //       const systemNameIndex = headersInc.findIndex(h => h.trim().toLowerCase() === 'system name');
+  //       const statusIndex = headersInc.findIndex(h => h.trim().toLowerCase() === 'status');
+
+  //       if (systemNameIndex === -1 || statusIndex === -1) {
+  //         throw new Error('"System name" or "Status" column not found in Inclusivity sheet.');
+  //       }
+
+  //       for (const row of dataRowsInc) {
+  //         const systemName = row[systemNameIndex]?.trim();
+  //         const status = row[statusIndex]?.trim();
+
+  //         if (!systemName) continue;
+
+  //         await this.generalDataModel.updateOne(
+  //           { systemName: systemName },
+  //           { $set: { inclusivityRanking: status } }, // ✅ Update inclusivityRanking instead
+  //           { upsert: false } // Do not create new record if it doesn't exist
+  //         );
+  //       }
+
+  //       this.logger.log(`Updated inclusivityRanking for ${dataRowsInc.length} rows from "Inclusivity Spectrum Analysis".`);
+  //     }
+  //   } catch (error) {
+  //     this.logger.error('Error fetching data from Google Sheets', error);
+  //   }
+  // }
 
 
   async fetchAndSyncVolumeData() {
@@ -299,112 +338,112 @@ async fetchAndSyncGeneralData() {
 
 
   async fetchAndSyncValueData() {
-  try {
-    const credentials = JSON.parse(
-      fs.readFileSync(
-        path.resolve(__dirname, '../../../config/authentication-411609-dcd87bcd1c0b.json'),
-        'utf8',
-      ),
-    );
+    try {
+      const credentials = JSON.parse(
+        fs.readFileSync(
+          path.resolve(__dirname, '../../../config/authentication-411609-dcd87bcd1c0b.json'),
+          'utf8',
+        ),
+      );
 
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-    });
-
-    const sheets = google.sheets({ version: 'v4', auth });
-    const spreadsheetId = '1VBLgF2JRCHh4RKPHhTB66yCD-Zc5Ru0wCxX3ZEDtTR0';
-    const range = 'Value data ($US 2022)!A3:ZZ';
-
-    const res = await sheets.spreadsheets.values.get({ spreadsheetId, range });
-    const rows = res.data.values;
-
-    if (!rows || rows.length === 0) {
-      this.logger.warn('No Value Data found.');
-      return;
-    }
-
-    const headers = rows[0];
-
-    const normalize = (h?: string) =>
-      (h || '')
-        .replace(/\n/g, ' ')
-        .replace(/\s+/g, ' ')
-        .replace(/[^a-z0-9 ()$]/gi, '')
-        .trim()
-        .toLowerCase();
-
-    const headersNorm = headers.map(normalize);
-    const findIndexByNorm = (target: string) =>
-      headersNorm.findIndex((h) => h === target.toLowerCase());
-
-    const systemNameIndex = findIndexByNorm('system name');
-    const geoReachIndex = findIndexByNorm('geographic reach');
-    const ipsTypeIndex = findIndexByNorm('ips type');
-    const exchangeRateIndex = headersNorm.findIndex((h) => h.startsWith('exchange rate'));
-
-    if (systemNameIndex === -1) {
-      this.logger.error('Could not find "System name" column.');
-      return;
-    }
-
-    const yearColumns: Record<number, number> = {};
-    const yearRegex = /^value\(\$us\)\s*(\d{4})\s*ips transactions$/i;
-
-    headersNorm.forEach((h, idx) => {
-      const match = h.match(yearRegex);
-      if (match) {
-        const year = parseInt(match[1], 10);
-        yearColumns[year] = idx;
-      }
-    });
-
-    this.logger.log(`Found Value($US) IPS Transactions columns for years: ${Object.keys(yearColumns).join(', ') || 'none'}`);
-
-    const dataRows = rows.slice(1);
-    const ops: any[] = [];
-
-    for (const row of dataRows) {
-      const systemName = (row[systemNameIndex] || '').toString().trim();
-      if (!systemName) continue;
-
-      const doc: any = {
-        systemName,
-        geographicReach: geoReachIndex !== -1 ? (row[geoReachIndex] || '').toString().trim() : '',
-        ipsType: ipsTypeIndex !== -1 ? (row[ipsTypeIndex] || '').toString().trim() : '',
-        exchangeRate: exchangeRateIndex !== -1 ? (row[exchangeRateIndex] || '').toString().trim() : '',
-      };
-
-      for (const [year, idx] of Object.entries(yearColumns)) {
-        const val = row[idx];
-        if (val !== undefined && val !== null && String(val).trim() !== '') {
-          const num = Number(String(val).replace(/,/g, '').trim());
-          doc[`values${year}`] = isNaN(num) ? null : num;
-        } else {
-          doc[`values${year}`] = null;
-        }
-      }
-
-      ops.push({
-        updateOne: {
-          filter: { systemName: doc.systemName },
-          update: { $set: doc },
-          upsert: true,
-        },
+      const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
       });
-    }
 
-    if (ops.length === 0) {
-      this.logger.log('No Value Data rows to upsert.');
-      return;
-    }
+      const sheets = google.sheets({ version: 'v4', auth });
+      const spreadsheetId = '1VBLgF2JRCHh4RKPHhTB66yCD-Zc5Ru0wCxX3ZEDtTR0';
+      const range = 'Value data ($US 2022)!A3:ZZ';
 
-    const bulkRes = await this.valueDataModel.bulkWrite(ops);
-    this.logger.log(`Value Data synced. bulkWrite result: ${JSON.stringify(bulkRes)}`);
-  } catch (error) {
-    this.logger.error('Error fetching Value Data from Google Sheets', error);
+      const res = await sheets.spreadsheets.values.get({ spreadsheetId, range });
+      const rows = res.data.values;
+
+      if (!rows || rows.length === 0) {
+        this.logger.warn('No Value Data found.');
+        return;
+      }
+
+      const headers = rows[0];
+
+      const normalize = (h?: string) =>
+        (h || '')
+          .replace(/\n/g, ' ')
+          .replace(/\s+/g, ' ')
+          .replace(/[^a-z0-9 ()$]/gi, '')
+          .trim()
+          .toLowerCase();
+
+      const headersNorm = headers.map(normalize);
+      const findIndexByNorm = (target: string) =>
+        headersNorm.findIndex((h) => h === target.toLowerCase());
+
+      const systemNameIndex = findIndexByNorm('system name');
+      const geoReachIndex = findIndexByNorm('geographic reach');
+      const ipsTypeIndex = findIndexByNorm('ips type');
+      const exchangeRateIndex = headersNorm.findIndex((h) => h.startsWith('exchange rate'));
+
+      if (systemNameIndex === -1) {
+        this.logger.error('Could not find "System name" column.');
+        return;
+      }
+
+      const yearColumns: Record<number, number> = {};
+      const yearRegex = /^value\(\$us\)\s*(\d{4})\s*ips transactions$/i;
+
+      headersNorm.forEach((h, idx) => {
+        const match = h.match(yearRegex);
+        if (match) {
+          const year = parseInt(match[1], 10);
+          yearColumns[year] = idx;
+        }
+      });
+
+      this.logger.log(`Found Value($US) IPS Transactions columns for years: ${Object.keys(yearColumns).join(', ') || 'none'}`);
+
+      const dataRows = rows.slice(1);
+      const ops: any[] = [];
+
+      for (const row of dataRows) {
+        const systemName = (row[systemNameIndex] || '').toString().trim();
+        if (!systemName) continue;
+
+        const doc: any = {
+          systemName,
+          geographicReach: geoReachIndex !== -1 ? (row[geoReachIndex] || '').toString().trim() : '',
+          ipsType: ipsTypeIndex !== -1 ? (row[ipsTypeIndex] || '').toString().trim() : '',
+          exchangeRate: exchangeRateIndex !== -1 ? (row[exchangeRateIndex] || '').toString().trim() : '',
+        };
+
+        for (const [year, idx] of Object.entries(yearColumns)) {
+          const val = row[idx];
+          if (val !== undefined && val !== null && String(val).trim() !== '') {
+            const num = Number(String(val).replace(/,/g, '').trim());
+            doc[`values${year}`] = isNaN(num) ? null : num;
+          } else {
+            doc[`values${year}`] = null;
+          }
+        }
+
+        ops.push({
+          updateOne: {
+            filter: { systemName: doc.systemName },
+            update: { $set: doc },
+            upsert: true,
+          },
+        });
+      }
+
+      if (ops.length === 0) {
+        this.logger.log('No Value Data rows to upsert.');
+        return;
+      }
+
+      const bulkRes = await this.valueDataModel.bulkWrite(ops);
+      this.logger.log(`Value Data synced. bulkWrite result: ${JSON.stringify(bulkRes)}`);
+    } catch (error) {
+      this.logger.error('Error fetching Value Data from Google Sheets', error);
+    }
   }
-}
 
 
   // async fetchAndSyncValueData() {

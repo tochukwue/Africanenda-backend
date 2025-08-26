@@ -25,7 +25,23 @@ export class FiltersDto {
   @IsString({ each: true })
   geographicRegion?: string[];
 
-    @ApiProperty({
+
+  // @Prop() supportedChannels: string;  [QR Code,USSD,App,Browser]
+  // @Prop() apiUseFunction: string;    [API access]
+  // @Prop() thirdPartyConnectionsEnabled: string; [Third-party connections]
+  // @Prop() realTimePaymentConfirmation: string;  [Payment confirmation]
+  // @Prop() pullRequestToPayEnabled: string;  [Request to Pay]
+  @ApiProperty({
+    example: ['apiUseFunction', 'thirdPartyConnectionsEnabled', 'realTimePaymentConfirmation', 'pullRequestToPayEnabled',"QR Code","USSD","App","Browser"],
+    description: 'Pull request to pay enabled to filter by',
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  IPSFunctionality: string[];
+
+  @ApiProperty({
     example: ['Yes', 'No'],
     description: 'Pull request to pay enabled to filter by',
     required: false,
@@ -36,8 +52,8 @@ export class FiltersDto {
   gender?: string[];
 
 
-    @ApiProperty({
-    example: ['Progressed', 'Not ranked',"Basic","Mature"],
+  @ApiProperty({
+    example: ['Progressed', 'Not ranked', "Basic", "Mature"],
     description: 'Pull request to pay enabled to filter by',
     required: false,
   })
@@ -541,7 +557,7 @@ export class GetByCategoriesDto {
   @Type(() => FiltersDto)
   filters?: FiltersDto;
 
-    @ApiPropertyOptional({
+  @ApiPropertyOptional({
     description: 'Optional filter for ipsName (applies only to regional categories).',
     type: [String],
     example: ['PAPSS', 'SEPA'],
@@ -550,4 +566,4 @@ export class GetByCategoriesDto {
 }
 
 
-export class CreateIpslistDto {}
+export class CreateIpslistDto { }

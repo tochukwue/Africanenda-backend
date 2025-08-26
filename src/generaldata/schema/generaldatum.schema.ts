@@ -9,11 +9,14 @@ export class GeneralData {
     @Prop() coverage: string; // Domestic/Regional
     @Prop() yearOfEstablishment: string;
     @Prop() gender: string;
-
-     @Prop()inclusivityRanking: string;
+    @Prop() inclusivityRanking: string;
 
     // IPS FUNCTIONALITIES START
     @Prop() supportedChannels: string;
+    @Prop() apiUseFunction: string;
+    @Prop() thirdPartyConnectionsEnabled: string;
+    @Prop() realTimePaymentConfirmation: string;
+    @Prop() pullRequestToPayEnabled: string;
     // IPS FUNCTIONALITIES END
 
     @Prop() interoperabilityArrangement: string;
@@ -46,7 +49,6 @@ export class GeneralData {
     @Prop() schemeRulesPublic: string;
     @Prop() additionalRecourseRequirements: string;
     @Prop() disputeResolutionMechanism: string;
-    @Prop() apiUseFunction: string;
     @Prop() startupFundingSource: string;
     @Prop() participationInDecisionMaking: string;
     @Prop() mechanismForDecisionMaking: string;
@@ -56,8 +58,6 @@ export class GeneralData {
     @Prop() minValueForTransactions: string;
     @Prop() corporateStructure: string;
     @Prop() otherCorporateStructure: string;
-    @Prop() pullRequestToPayEnabled: string;
-    @Prop() thirdPartyConnectionsEnabled: string;
     @Prop() realTimePaymentConfirmationEnabled: string;
     @Prop() transactionValidationEnabled: string;
 }
