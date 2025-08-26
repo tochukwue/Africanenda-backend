@@ -29,8 +29,7 @@ export class GoogleSheetService {
       .replace(/^(.)/, (match, group1) => group1.toLowerCase());
   }
 
-
-  async fetchAndSyncGeneralData() {
+async fetchAndSyncGeneralData() {
   try {
     const credentials = JSON.parse(
       fs.readFileSync(
@@ -47,100 +46,141 @@ export class GoogleSheetService {
     const sheets = google.sheets({ version: 'v4', auth });
 
     const spreadsheetId = '1VBLgF2JRCHh4RKPHhTB66yCD-Zc5Ru0wCxX3ZEDtTR0';
-    const range = '2025 data!A1:AZ'; // adjust range if needed
 
-    const res = await sheets.spreadsheets.values.get({ spreadsheetId, range });
-    const rows = res.data.values;
+    /** ✅ First: Sync "2025 data" sheet */
+    const rangeMain = '2025 data!A1:AZ';
+    const resMain = await sheets.spreadsheets.values.get({ spreadsheetId, range: rangeMain });
+    const rowsMain = resMain.data.values;
 
-    if (!rows || rows.length < 2) {
-      this.logger.warn('No data found in the sheet.');
-      return;
+    if (!rowsMain || rowsMain.length < 2) {
+      this.logger.warn('No data found in "2025 data" sheet.');
+    } else {
+      const headersMain = rowsMain[0];
+      const dataRowsMain = rowsMain.slice(1);
+
+      const headerMap: Record<string, string> = {
+        'IPS type': 'ipsType',
+        'Governance typology (Industry, PPP, Central Bank led)': 'governanceTypology',
+        // Add more mappings if required
+      };
+
+      for (const row of dataRowsMain) {
+        const rowData: any = {};
+        headersMain.forEach((header, index) => {
+          const normalizedHeader = headerMap[header] || this.camelCase(header);
+          rowData[normalizedHeader] = row[index] || '';
+        });
+
+        await this.generalDataModel.updateOne(
+          { systemName: rowData.systemName },
+          { $set: rowData },
+          { upsert: true }
+        );
+      }
+
+      this.logger.log(`Synced ${dataRowsMain.length} rows from "2025 data" sheet.`);
     }
 
-    const headers = rows[0];
-    const dataRows = rows.slice(1);
+    /** ✅ Second: Sync "Inclusivity Spectrum Analysis" sheet */
+    const rangeInclusivity = 'Inclusivity Spectrum Analysis!A5:Z'; // Starts from row 5
+    const resInclusivity = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: rangeInclusivity,
+    });
+    const rowsInclusivity = resInclusivity.data.values;
 
-    // Map sheet headers to schema field names
-    const headerMap: Record<string, string> = {
-      'IPS type': 'ipsType',
-      'Governance typology (Industry, PPP, Central Bank led)': 'governanceTypology',
-      // Add more mappings if required
-    };
+    if (!rowsInclusivity || rowsInclusivity.length < 2) {
+      this.logger.warn('No data found in "Inclusivity Spectrum Analysis" sheet.');
+    } else {
+      const headersInc = rowsInclusivity[0];
+      const dataRowsInc = rowsInclusivity.slice(1);
 
-    for (const row of dataRows) {
-      const rowData: any = {};
-      headers.forEach((header, index) => {
-        const normalizedHeader = headerMap[header] || this.camelCase(header);
-        rowData[normalizedHeader] = row[index] || '';
-      });
+      const systemNameIndex = headersInc.findIndex(h => h.trim().toLowerCase() === 'system name');
+      const statusIndex = headersInc.findIndex(h => h.trim().toLowerCase() === 'status');
 
-      // Use systemName as unique identifier for upsert
-      await this.generalDataModel.updateOne(
-        { systemName: rowData.systemName },
-        { $set: rowData },
-        { upsert: true }
-      );
+      if (systemNameIndex === -1 || statusIndex === -1) {
+        throw new Error('"System name" or "Status" column not found in Inclusivity sheet.');
+      }
+
+      for (const row of dataRowsInc) {
+        const systemName = row[systemNameIndex]?.trim();
+        const status = row[statusIndex]?.trim();
+
+        if (!systemName) continue;
+
+        await this.generalDataModel.updateOne(
+          { systemName: systemName },
+          { $set: { inclusivityRanking: status } }, // ✅ Update inclusivityRanking instead
+          { upsert: false } // Do not create new record if it doesn't exist
+        );
+      }
+
+      this.logger.log(`Updated inclusivityRanking for ${dataRowsInc.length} rows from "Inclusivity Spectrum Analysis".`);
     }
-
-    this.logger.log(`Synced ${dataRows.length} rows from Google Sheets.`);
   } catch (error) {
     this.logger.error('Error fetching data from Google Sheets', error);
   }
 }
 
-  // async fetchAndSyncGeneralData() {
-  //   try {
+//   async fetchAndSyncGeneralData() {
+//   try {
+//     const credentials = JSON.parse(
+//       fs.readFileSync(
+//         path.resolve(__dirname, '../../../config/authentication-411609-dcd87bcd1c0b.json'),
+//         'utf8'
+//       )
+//     );
 
-  //     const credentials = JSON.parse(
-  //       fs.readFileSync(
-  //         path.resolve(
-  //           __dirname,
-  //           '../../../config/authentication-411609-dcd87bcd1c0b.json',
-  //         ),
-  //         'utf8',
-  //       ),
-  //     );
+//     const auth = new google.auth.GoogleAuth({
+//       credentials,
+//       scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+//     });
 
-  //     const auth = new google.auth.GoogleAuth({
-  //       credentials,
-  //       scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-  //     });
+//     const sheets = google.sheets({ version: 'v4', auth });
 
-  //     const sheets = google.sheets({ version: 'v4', auth });
+//     const spreadsheetId = '1VBLgF2JRCHh4RKPHhTB66yCD-Zc5Ru0wCxX3ZEDtTR0';
+//     const range = '2025 data!A1:AZ'; // adjust range if needed
 
-  //     const spreadsheetId = '1VBLgF2JRCHh4RKPHhTB66yCD-Zc5Ru0wCxX3ZEDtTR0';
-  //     const range = '2025 data!A1:AZ'; // adjust columns range
+//     const res = await sheets.spreadsheets.values.get({ spreadsheetId, range });
+//     const rows = res.data.values;
 
-  //     const res = await sheets.spreadsheets.values.get({ spreadsheetId, range });
-  //     const rows = res.data.values;
+//     if (!rows || rows.length < 2) {
+//       this.logger.warn('No data found in the sheet.');
+//       return;
+//     }
 
-  //     if (!rows || rows.length < 2) {
-  //       this.logger.warn('No data found in the sheet.');
-  //       return;
-  //     }
+//     const headers = rows[0];
+//     const dataRows = rows.slice(1);
 
-  //     const headers = rows[0];
-  //     const dataRows = rows.slice(1);
+//     // Map sheet headers to schema field names
+//     const headerMap: Record<string, string> = {
+//       'IPS type': 'ipsType',
+//       'Governance typology (Industry, PPP, Central Bank led)': 'governanceTypology',
+//       // Add more mappings if required
+//     };
 
-  //     for (const row of dataRows) {
-  //       const rowData: any = {};
-  //       headers.forEach((header, index) => {
-  //         rowData[this.camelCase(header)] = row[index] || '';
-  //       });
+//     for (const row of dataRows) {
+//       const rowData: any = {};
+//       headers.forEach((header, index) => {
+//         const normalizedHeader = headerMap[header] || this.camelCase(header);
+//         rowData[normalizedHeader] = row[index] || '';
+//       });
 
-  //       // Use systemName as unique identifier for upsert
-  //       await this.generalDataModel.updateOne(
-  //         { systemName: rowData.systemName },
-  //         { $set: rowData },
-  //         { upsert: true }
-  //       );
-  //     }
+//       // Use systemName as unique identifier for upsert
+//       await this.generalDataModel.updateOne(
+//         { systemName: rowData.systemName },
+//         { $set: rowData },
+//         { upsert: true }
+//       );
+//     }
 
-  //     this.logger.log(`Synced ${dataRows.length} rows from Google Sheets.`);
-  //   } catch (error) {
-  //     this.logger.error('Error fetching data from Google Sheets', error);
-  //   }
-  // }
+//     this.logger.log(`Synced ${dataRows.length} rows from Google Sheets.`);
+//   } catch (error) {
+//     this.logger.error('Error fetching data from Google Sheets', error);
+//   }
+// }
+
+
 
 
   async fetchAndSyncVolumeData() {

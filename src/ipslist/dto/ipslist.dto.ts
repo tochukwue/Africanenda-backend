@@ -35,6 +35,17 @@ export class FiltersDto {
   @IsString({ each: true })
   gender?: string[];
 
+
+    @ApiProperty({
+    example: ['Progressed', 'Not ranked',"Basic","Mature"],
+    description: 'Pull request to pay enabled to filter by',
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  inclusivityRanking
+
   @ApiProperty({
     example: ['Domestic', 'Regional'],
     description: 'Coverage type to filter by',

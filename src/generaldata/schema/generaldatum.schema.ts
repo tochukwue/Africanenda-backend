@@ -10,6 +10,12 @@ export class GeneralData {
     @Prop() yearOfEstablishment: string;
     @Prop() gender: string;
 
+     @Prop()inclusivityRanking: string;
+
+    // IPS FUNCTIONALITIES START
+    @Prop() supportedChannels: string;
+    // IPS FUNCTIONALITIES END
+
     @Prop() interoperabilityArrangement: string;
     @Prop() ipsType: string;
     @Prop() governanceTypology: string;
@@ -31,7 +37,6 @@ export class GeneralData {
     @Prop() supportedUseCases: string;
     @Prop() supportedInstruments: string;
     @Prop() primaryLocalChannel: string;
-    @Prop() supportedChannels: string;
     @Prop() qrCodeEnabledType: string; // Static/dynamic/both
     @Prop() messagingStandard: string;
     @Prop() proxyId: string;
