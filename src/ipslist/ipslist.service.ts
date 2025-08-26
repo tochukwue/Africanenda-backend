@@ -33,7 +33,7 @@ export class IpslistService {
 
     const regex = new RegExp(term, 'i'); // case-insensitive contains
     const results = await this.generalDataModel
-      .find({ systemName: { $regex: regex } }, { systemName: 1, geographicReach:1, _id: 0 })
+      .find({ systemName: { $regex: regex } }, { systemName: 1, geographicReach: 1, _id: 0 })
       .lean()
       .exec();
 
@@ -54,236 +54,236 @@ export class IpslistService {
       .exec();
   }
 
-async getValueDataWithCountryCode(systemNames: string[], startYear?: number, endYear?: number) {
-  if (!Array.isArray(systemNames) || systemNames.length === 0) {
-    throw new BadRequestException('systemNames must be a non-empty array.');
-  }
+  async getValueDataWithCountryCode(systemNames: string[], startYear?: number, endYear?: number) {
+    if (!Array.isArray(systemNames) || systemNames.length === 0) {
+      throw new BadRequestException('systemNames must be a non-empty array.');
+    }
 
-  if (startYear && endYear && startYear > endYear) {
-    throw new BadRequestException('startYear cannot be greater than endYear.');
-  }
+    if (startYear && endYear && startYear > endYear) {
+      throw new BadRequestException('startYear cannot be greater than endYear.');
+    }
 
-  const includeTotal = systemNames.some(name => name.toLowerCase() === 'total');
+    const includeTotal = systemNames.some(name => name.toLowerCase() === 'total');
 
-  const results = includeTotal
-    ? await this.valueDataModel.find({}).lean()
-    : await this.valueDataModel.find({ systemName: { $in: systemNames } }).lean();
+    const results = includeTotal
+      ? await this.valueDataModel.find({}).lean()
+      : await this.valueDataModel.find({ systemName: { $in: systemNames } }).lean();
 
-  // ✅ If systemNames = ['total'], group by geographicReach
-  let mapped: any[] = [];
+    // ✅ If systemNames = ['total'], group by geographicReach
+    let mapped: any[] = [];
 
-  if (systemNames.length === 1 && systemNames[0].toLowerCase() === 'total') {
-    const grouped = results.reduce((acc, item) => {
-      const key = item.geographicReach || 'UNKNOWN';
-      if (!acc[key]) {
-        acc[key] = {
-          geographicReach: key,
-          countryCode: this.getCountryCode(key),
-          systemNames: [],
-        };
+    if (systemNames.length === 1 && systemNames[0].toLowerCase() === 'total') {
+      const grouped = results.reduce((acc, item) => {
+        const key = item.geographicReach || 'UNKNOWN';
+        if (!acc[key]) {
+          acc[key] = {
+            geographicReach: key,
+            countryCode: this.getCountryCode(key),
+            systemNames: [],
+          };
 
-        if (startYear && endYear) {
-          for (let y = startYear; y <= endYear; y++) {
-            acc[key][`values${y}`] = 0;
-          }
-        } else {
-          for (let y = 2020; y <= 2024; y++) {
-            acc[key][`values${y}`] = 0;
+          if (startYear && endYear) {
+            for (let y = startYear; y <= endYear; y++) {
+              acc[key][`values${y}`] = 0;
+            }
+          } else {
+            for (let y = 2020; y <= 2024; y++) {
+              acc[key][`values${y}`] = 0;
+            }
           }
         }
-      }
 
-      acc[key].systemNames.push(item.systemName);
+        acc[key].systemNames.push(item.systemName);
 
-      const fields = Object.keys(item).filter(k => k.startsWith('values'));
-      for (const field of fields) {
-        const yearMatch = field.match(/(\d{4})$/);
-        if (yearMatch) {
-          const year = parseInt(yearMatch[1], 10);
-          if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
-            const val = item[field];
-            if (val !== null && val !== undefined && val !== '') {
-              const num = Number(val);
-              if (!isNaN(num)) {
-                acc[key][field] = (acc[key][field] || 0) + num;
+        const fields = Object.keys(item).filter(k => k.startsWith('values'));
+        for (const field of fields) {
+          const yearMatch = field.match(/(\d{4})$/);
+          if (yearMatch) {
+            const year = parseInt(yearMatch[1], 10);
+            if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
+              const val = item[field];
+              if (val !== null && val !== undefined && val !== '') {
+                const num = Number(val);
+                if (!isNaN(num)) {
+                  acc[key][field] = (acc[key][field] || 0) + num;
+                }
               }
             }
           }
         }
-      }
 
-      return acc;
-    }, {} as Record<string, any>);
+        return acc;
+      }, {} as Record<string, any>);
 
-    mapped = Object.values(grouped);
-  } else {
-    // ✅ Filter years for non-total systems
-    mapped = results.map(item => {
-      const filteredItem: any = {
-        geographicReach: item.geographicReach,
-        countryCode: this.getCountryCode(item.geographicReach),
-        systemNames: [item.systemName],
-      };
-
-      const fields = Object.keys(item).filter(k => k.startsWith('values'));
-      for (const field of fields) {
-        const yearMatch = field.match(/(\d{4})$/);
-        if (yearMatch) {
-          const year = parseInt(yearMatch[1], 10);
-          if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
-            filteredItem[field] = item[field];
-          }
-        }
-      }
-
-      return filteredItem;
-    });
-  }
-
-  if (includeTotal) {
-    const totalObj = mapped.find(item =>
-      item.systemNames.some(name => name.toLowerCase() === 'total')
-    );
-
-    const otherNames = systemNames
-      .filter(name => name.toLowerCase() !== 'total')
-      .map(name => name.toLowerCase());
-
-    let data;
-
-    if (otherNames.length === 0) {
-      data = mapped.filter(item =>
-        !item.systemNames.some(name => name.toLowerCase() === 'total')
-      );
+      mapped = Object.values(grouped);
     } else {
-      data = mapped.filter(item =>
-        item.systemNames.some(name => otherNames.includes(name.toLowerCase()))
-      );
-    }
-
-    return {
-      total: totalObj || null,
-      data,
-    };
-  }
-
-  return mapped;
-}
-
-async getVolumeDataWithCountryCode(systemNames: string[], startYear?: number, endYear?: number) {
-  if (!Array.isArray(systemNames) || systemNames.length === 0) {
-    throw new BadRequestException('systemNames must be a non-empty array.');
-  }
-
-  if (startYear && endYear && startYear > endYear) {
-    throw new BadRequestException('startYear cannot be greater than endYear.');
-  }
-
-  const includeTotal = systemNames.some(name => name.toLowerCase() === 'total');
-
-  const results = includeTotal
-    ? await this.volumeDataModel.find({}).lean()
-    : await this.volumeDataModel.find({ systemName: { $in: systemNames } }).lean();
-
-  let mapped: any[] = [];
-
-  if (systemNames.length === 1 && systemNames[0].toLowerCase() === 'total') {
-    const grouped = results.reduce((acc, item) => {
-      const key = item.geographicReach || 'UNKNOWN';
-      if (!acc[key]) {
-        acc[key] = {
-          geographicReach: key,
-          countryCode: this.getCountryCode(key),
-          systemNames: [],
+      // ✅ Filter years for non-total systems
+      mapped = results.map(item => {
+        const filteredItem: any = {
+          geographicReach: item.geographicReach,
+          countryCode: this.getCountryCode(item.geographicReach),
+          systemNames: [item.systemName],
         };
 
-        if (startYear && endYear) {
-          for (let y = startYear; y <= endYear; y++) {
-            acc[key][`volumes${y}`] = 0;
-          }
-        } else {
-          for (let y = 2020; y <= 2024; y++) {
-            acc[key][`volumes${y}`] = 0;
+        const fields = Object.keys(item).filter(k => k.startsWith('values'));
+        for (const field of fields) {
+          const yearMatch = field.match(/(\d{4})$/);
+          if (yearMatch) {
+            const year = parseInt(yearMatch[1], 10);
+            if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
+              filteredItem[field] = item[field];
+            }
           }
         }
+
+        return filteredItem;
+      });
+    }
+
+    if (includeTotal) {
+      const totalObj = mapped.find(item =>
+        item.systemNames.some(name => name.toLowerCase() === 'total')
+      );
+
+      const otherNames = systemNames
+        .filter(name => name.toLowerCase() !== 'total')
+        .map(name => name.toLowerCase());
+
+      let data;
+
+      if (otherNames.length === 0) {
+        data = mapped.filter(item =>
+          !item.systemNames.some(name => name.toLowerCase() === 'total')
+        );
+      } else {
+        data = mapped.filter(item =>
+          item.systemNames.some(name => otherNames.includes(name.toLowerCase()))
+        );
       }
 
-      acc[key].systemNames.push(item.systemName);
+      return {
+        total: totalObj || null,
+        data,
+      };
+    }
 
-      const fields = Object.keys(item).filter(k => k.startsWith('volumes'));
-      for (const field of fields) {
-        const yearMatch = field.match(/(\d{4})$/);
-        if (yearMatch) {
-          const year = parseInt(yearMatch[1], 10);
-          if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
-            const val = item[field];
-            if (val !== null && val !== undefined && val !== '') {
-              const num = Number(val);
-              if (!isNaN(num)) {
-                acc[key][field] = (acc[key][field] || 0) + num;
+    return mapped;
+  }
+
+  async getVolumeDataWithCountryCode(systemNames: string[], startYear?: number, endYear?: number) {
+    if (!Array.isArray(systemNames) || systemNames.length === 0) {
+      throw new BadRequestException('systemNames must be a non-empty array.');
+    }
+
+    if (startYear && endYear && startYear > endYear) {
+      throw new BadRequestException('startYear cannot be greater than endYear.');
+    }
+
+    const includeTotal = systemNames.some(name => name.toLowerCase() === 'total');
+
+    const results = includeTotal
+      ? await this.volumeDataModel.find({}).lean()
+      : await this.volumeDataModel.find({ systemName: { $in: systemNames } }).lean();
+
+    let mapped: any[] = [];
+
+    if (systemNames.length === 1 && systemNames[0].toLowerCase() === 'total') {
+      const grouped = results.reduce((acc, item) => {
+        const key = item.geographicReach || 'UNKNOWN';
+        if (!acc[key]) {
+          acc[key] = {
+            geographicReach: key,
+            countryCode: this.getCountryCode(key),
+            systemNames: [],
+          };
+
+          if (startYear && endYear) {
+            for (let y = startYear; y <= endYear; y++) {
+              acc[key][`volumes${y}`] = 0;
+            }
+          } else {
+            for (let y = 2020; y <= 2024; y++) {
+              acc[key][`volumes${y}`] = 0;
+            }
+          }
+        }
+
+        acc[key].systemNames.push(item.systemName);
+
+        const fields = Object.keys(item).filter(k => k.startsWith('volumes'));
+        for (const field of fields) {
+          const yearMatch = field.match(/(\d{4})$/);
+          if (yearMatch) {
+            const year = parseInt(yearMatch[1], 10);
+            if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
+              const val = item[field];
+              if (val !== null && val !== undefined && val !== '') {
+                const num = Number(val);
+                if (!isNaN(num)) {
+                  acc[key][field] = (acc[key][field] || 0) + num;
+                }
               }
             }
           }
         }
-      }
 
-      return acc;
-    }, {} as Record<string, any>);
+        return acc;
+      }, {} as Record<string, any>);
 
-    mapped = Object.values(grouped);
-  } else {
-    // ✅ Filter years for non-total systems
-    mapped = results.map(item => {
-      const filteredItem: any = {
-        geographicReach: item.geographicReach,
-        countryCode: this.getCountryCode(item.geographicReach),
-        systemNames: [item.systemName],
-      };
+      mapped = Object.values(grouped);
+    } else {
+      // ✅ Filter years for non-total systems
+      mapped = results.map(item => {
+        const filteredItem: any = {
+          geographicReach: item.geographicReach,
+          countryCode: this.getCountryCode(item.geographicReach),
+          systemNames: [item.systemName],
+        };
 
-      const fields = Object.keys(item).filter(k => k.startsWith('volumes'));
-      for (const field of fields) {
-        const yearMatch = field.match(/(\d{4})$/);
-        if (yearMatch) {
-          const year = parseInt(yearMatch[1], 10);
-          if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
-            filteredItem[field] = item[field];
+        const fields = Object.keys(item).filter(k => k.startsWith('volumes'));
+        for (const field of fields) {
+          const yearMatch = field.match(/(\d{4})$/);
+          if (yearMatch) {
+            const year = parseInt(yearMatch[1], 10);
+            if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
+              filteredItem[field] = item[field];
+            }
           }
         }
-      }
 
-      return filteredItem;
-    });
-  }
-
-  if (includeTotal) {
-    const totalObj = mapped.find(item =>
-      item.systemNames.some(name => name.toLowerCase() === 'total')
-    );
-
-    const otherNames = systemNames
-      .filter(name => name.toLowerCase() !== 'total')
-      .map(name => name.toLowerCase());
-
-    let data;
-
-    if (otherNames.length === 0) {
-      data = mapped.filter(item =>
-        !item.systemNames.some(name => name.toLowerCase() === 'total')
-      );
-    } else {
-      data = mapped.filter(item =>
-        item.systemNames.some(name => otherNames.includes(name.toLowerCase()))
-      );
+        return filteredItem;
+      });
     }
 
-    return {
-      total: totalObj || null,
-      data,
-    };
-  }
+    if (includeTotal) {
+      const totalObj = mapped.find(item =>
+        item.systemNames.some(name => name.toLowerCase() === 'total')
+      );
 
-  return mapped;
-}
+      const otherNames = systemNames
+        .filter(name => name.toLowerCase() !== 'total')
+        .map(name => name.toLowerCase());
+
+      let data;
+
+      if (otherNames.length === 0) {
+        data = mapped.filter(item =>
+          !item.systemNames.some(name => name.toLowerCase() === 'total')
+        );
+      } else {
+        data = mapped.filter(item =>
+          item.systemNames.some(name => otherNames.includes(name.toLowerCase()))
+        );
+      }
+
+      return {
+        total: totalObj || null,
+        data,
+      };
+    }
+
+    return mapped;
+  }
 
 
 
@@ -561,27 +561,28 @@ async getVolumeDataWithCountryCode(systemNames: string[], startYear?: number, en
 
   async countByDomesticAndRegional() {
     const categoryAliases: Record<string, string> = {
-      'LIVE: DOMESTIC IPS': 'LIVE',
-      'DOMESTIC: IN DEVELOPMENT': 'IN-DEVELOPMENT',
-      'Countries with no domestic IPS activity': 'NO IPS ACTIVITY',
-      'LIVE: REGIONAL IPS': 'LIVE',
-      'REGIONAL: IN DEVELOPMENT': 'IN-DEVELOPMENT',
-      'IN PILOT PHASE': 'PILOT',
-      'Countries with no regional IPS activity': 'NO IPS ACTIVITY',
-      'IN PILOT': 'PILOT',
+      'LIVE: DOMESTIC IPS': 'Live',
+      'DOMESTIC: IN DEVELOPMENT': 'In-development',
+      'Countries with no domestic IPS activity': 'No IPS Activity',
+      'LIVE: REGIONAL IPS': 'Live',
+      'REGIONAL: IN DEVELOPMENT': 'In-development',
+      'IN PILOT PHASE': 'Pilot',
+      'Countries with no regional IPS activity': 'No IPS Activity',
+      'IN PILOT': 'Pilot',
     };
 
     const domesticCategories = [
       'LIVE: DOMESTIC IPS',
+      'IN PILOT',
       'DOMESTIC: IN DEVELOPMENT',
       'Countries with no domestic IPS activity',
-      'IN PILOT',
+
     ];
 
     const regionalCategories = [
       'LIVE: REGIONAL IPS',
-      'REGIONAL: IN DEVELOPMENT',
       'IN PILOT PHASE',
+      'REGIONAL: IN DEVELOPMENT',
       'Countries with no regional IPS activity',
     ];
 
