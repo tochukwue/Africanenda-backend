@@ -830,9 +830,9 @@ export class IpslistService {
     return null;
   }
 
-  async findAll(): Promise<IpsActivity[]> {
-    return this.ipsActivityModel.find().exec();
-  }
+async findAll(): Promise<IpsActivity[]> {
+  return this.ipsActivityModel.find().sort({ ipsName: 1 }).exec();
+}
   ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
   ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
   ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
@@ -896,13 +896,13 @@ export class IpslistService {
         {
           category: 'DOMESTIC: IN DEVELOPMENT',
           headers: ['geography', 'status'],
-          start: 40,
+          start: 39,
           end: 57,
         },
         {
           category: 'Countries with no domestic IPS activity',
           headers: ['geography'],
-          start: 60,
+          start: 59,
           end: 68,
         },
         {
