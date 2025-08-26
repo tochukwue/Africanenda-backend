@@ -25,6 +25,16 @@ export class FiltersDto {
   @IsString({ each: true })
   geographicRegion?: string[];
 
+    @ApiProperty({
+    example: ['Yes', 'No'],
+    description: 'Pull request to pay enabled to filter by',
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  gender?: string[];
+
   @ApiProperty({
     example: ['Domestic', 'Regional'],
     description: 'Coverage type to filter by',
