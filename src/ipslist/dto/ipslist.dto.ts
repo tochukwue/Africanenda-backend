@@ -32,7 +32,7 @@ export class FiltersDto {
   // @Prop() realTimePaymentConfirmation: string;  [Payment confirmation]
   // @Prop() pullRequestToPayEnabled: string;  [Request to Pay]
   @ApiProperty({
-    example: ['apiUseFunction', 'thirdPartyConnectionsEnabled', 'realTimePaymentConfirmation', 'pullRequestToPayEnabled',"QR Code","USSD","App","Browser"],
+    example: ['apiUseFunction', 'thirdPartyConnectionsEnabled', 'realTimePaymentConfirmation', 'pullRequestToPayEnabled', "QR Code", "USSD", "App", "Browser"],
     description: 'Pull request to pay enabled to filter by',
     required: false,
   })
