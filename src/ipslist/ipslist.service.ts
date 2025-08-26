@@ -831,7 +831,11 @@ export class IpslistService {
   }
 
 async findAll(): Promise<IpsActivity[]> {
-  return this.ipsActivityModel.find().sort({ ipsName: 1 }).exec();
+  return this.ipsActivityModel
+    .find()
+    .collation({ locale: 'en', strength: 2 })
+    .sort({ ipsName: 1 })
+    .exec();
 }
   ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
   ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
