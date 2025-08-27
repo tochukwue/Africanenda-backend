@@ -831,12 +831,21 @@ export class IpslistService {
   }
 
 async findAll(): Promise<IpsActivity[]> {
-  return this.ipsActivityModel
+  const results = await this.ipsActivityModel
     .find()
-    .collation({ locale: 'en', strength: 2 })
+    .collation({ locale: 'en', strength: 2 }) // Case-insensitive sort
     .sort({ ipsName: 1 })
     .exec();
+
+  // ✅ Trim ipsName for each document
+  return results.map((doc) => {
+    if (doc.ipsName) {
+      doc.ipsName = doc.ipsName.trim();
+    }
+    return doc;
+  });
 }
+
   ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
   ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
   ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
