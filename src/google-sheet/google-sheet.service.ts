@@ -66,6 +66,7 @@ async fetchAndSyncGeneralData() {
         'third party connections enabled (y/n)': 'thirdPartyConnectionsEnabled',
         'real-time payment confirmation message enabled (y/n)': 'realTimePaymentConfirmation',
         'pull "request to pay" enabled (y/n)': 'pullRequestToPayEnabled',
+        "Governance typology (Industry, PPP, Central Bank led)" :"governanceTypology"
       };
 
       for (const row of dataRowsMain) {
