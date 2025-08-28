@@ -329,46 +329,46 @@ export class IpslistService {
   }
 
 
-async getGeneralDataGroupedByRegionAndCountry() {
-  const records = await this.generalDataModel.find().lean();
+  async getGeneralDataGroupedByRegionAndCountry() {
+    const records = await this.generalDataModel.find().lean();
 
-  // Group by geographicRegion and then geographicReach
-  const groupedByRegion = records.reduce((acc, record) => {
-    const region = record.geographicRegion?.trim();
-    const country = record.geographicReach?.trim();
+    // Group by geographicRegion and then geographicReach
+    const groupedByRegion = records.reduce((acc, record) => {
+      const region = record.geographicRegion?.trim();
+      const country = record.geographicReach?.trim();
 
-    // ✅ Skip records without valid region or country
-    if (!region || !country) return acc;
+      // ✅ Skip records without valid region or country
+      if (!region || !country) return acc;
 
-    if (!acc[region]) {
-      acc[region] = {};
-    }
-    if (!acc[region][country]) {
-      acc[region][country] = [];
-    }
+      if (!acc[region]) {
+        acc[region] = {};
+      }
+      if (!acc[region][country]) {
+        acc[region][country] = [];
+      }
 
-    acc[region][country].push({
-      systemName: record.systemName?.trim(),
-      geographicReach: country,
-      geographicRegion: region,
-      countryCode: this.getCountryCode(country),
-    });
+      acc[region][country].push({
+        systemName: record.systemName?.trim(),
+        geographicReach: country,
+        geographicRegion: region,
+        countryCode: this.getCountryCode(country),
+      });
 
-    return acc;
-  }, {} as Record<string, Record<string, any[]>>);
+      return acc;
+    }, {} as Record<string, Record<string, any[]>>);
 
-  // Convert into structured array
-  return Object.entries(groupedByRegion).map(([region, countries]) => ({
-    region,
-    totalCountries: Object.keys(countries).length,
-    countries: Object.entries(countries).map(([country, data]) => ({
-      country,
-      countryCode: this.getCountryCode(country),
-      totalSystems: data.length,
-      data,
-    })),
-  }));
-}
+    // Convert into structured array
+    return Object.entries(groupedByRegion).map(([region, countries]) => ({
+      region,
+      totalCountries: Object.keys(countries).length,
+      countries: Object.entries(countries).map(([country, data]) => ({
+        country,
+        countryCode: this.getCountryCode(country),
+        totalSystems: data.length,
+        data,
+      })),
+    }));
+  }
 
 
 
@@ -455,262 +455,262 @@ async getGeneralDataGroupedByRegionAndCountry() {
   }
 
 
-async getByCategoriesEnriched(
-  categories: string[],
-  filters?: any,
-  ipsNameFilter?: string | string[]
-) {
-  const validCategories = [
-    'LIVE: DOMESTIC IPS',
-    'DOMESTIC: IN DEVELOPMENT',
-    'Countries with no domestic IPS activity',
+  async getByCategoriesEnriched(
+    categories: string[],
+    filters?: any,
+    ipsNameFilter?: string | string[]
+  ) {
+    const validCategories = [
+      'LIVE: DOMESTIC IPS',
+      'DOMESTIC: IN DEVELOPMENT',
+      'Countries with no domestic IPS activity',
 
-    'LIVE: REGIONAL IPS',
-    'REGIONAL: IN DEVELOPMENT',
-    'IN PILOT PHASE',
-    'Countries with no regional IPS activity',
-  ];
+      'LIVE: REGIONAL IPS',
+      'REGIONAL: IN DEVELOPMENT',
+      'IN PILOT PHASE',
+      'Countries with no regional IPS activity',
+    ];
 
-  // ✅ If no categories provided but filters exist, default to ['LIVE: DOMESTIC IPS']
-  if ((!categories || categories.length === 0) && filters && Object.keys(filters).length > 0) {
-    categories = ['LIVE: DOMESTIC IPS'];
-  }
-
-  // ✅ Validate categories
-  if (!Array.isArray(categories) || categories.length === 0) {
-    throw new BadRequestException('Categories must be a non-empty array.');
-  }
-
-  categories.forEach((c) => {
-    if (!validCategories.includes(c)) {
-      throw new BadRequestException(`Invalid category: ${c}`);
+    // ✅ If no categories provided but filters exist, default to ['LIVE: DOMESTIC IPS']
+    if ((!categories || categories.length === 0) && filters && Object.keys(filters).length > 0) {
+      categories = ['LIVE: DOMESTIC IPS'];
     }
-  });
 
-  // ✅ If filters exist, ensure 'LIVE: DOMESTIC IPS' is included
-  if (filters && Object.keys(filters).length > 0 && !categories.includes('LIVE: DOMESTIC IPS')) {
-    categories.push('LIVE: DOMESTIC IPS');
-  }
+    // ✅ Validate categories
+    if (!Array.isArray(categories) || categories.length === 0) {
+      throw new BadRequestException('Categories must be a non-empty array.');
+    }
 
-  let allResults = [];
+    categories.forEach((c) => {
+      if (!validCategories.includes(c)) {
+        throw new BadRequestException(`Invalid category: ${c}`);
+      }
+    });
 
-  for (const category of categories) {
-    let ipsList = await this.ipsActivityModel.find({ category }).lean().exec();
-    let enrichedData = [];
+    // ✅ If filters exist, ensure 'LIVE: DOMESTIC IPS' is included
+    if (filters && Object.keys(filters).length > 0 && !categories.includes('LIVE: DOMESTIC IPS')) {
+      categories.push('LIVE: DOMESTIC IPS');
+    }
 
-    switch (category) {
-      // ✅ LIVE: DOMESTIC IPS with aggregation
-      case 'LIVE: DOMESTIC IPS': {
-        let filteredIpsList = ipsList;
+    let allResults = [];
 
-        // ✅ Apply GeneralData-based filters
-        if (filters && Object.keys(filters).length > 0) {
-          const filterQueries: any[] = [];
+    for (const category of categories) {
+      let ipsList = await this.ipsActivityModel.find({ category }).lean().exec();
+      let enrichedData = [];
 
-          for (const [field, values] of Object.entries(filters)) {
-            if (!Array.isArray(values)) continue;
+      switch (category) {
+        // ✅ LIVE: DOMESTIC IPS with aggregation
+        case 'LIVE: DOMESTIC IPS': {
+          let filteredIpsList = ipsList;
 
-            // ✅ Handle governanceTypology special case
-            if (field === 'governanceTypology') {
-              const cleanedValues = values.map((v: string) =>
-                v === 'Public Private Partnership (PPP)' ? 'Public Private Partnership' : v
-              );
+          // ✅ Apply GeneralData-based filters
+          if (filters && Object.keys(filters).length > 0) {
+            const filterQueries: any[] = [];
 
-              const regexConditions = cleanedValues.map((v) => ({
-                [field]: { $regex: v, $options: 'i' },
-              }));
-              filterQueries.push({ $or: regexConditions });
-              continue;
-            }
+            for (const [field, values] of Object.entries(filters)) {
+              if (!Array.isArray(values)) continue;
 
-            if (field === 'IPSFunctionality') {
-              const orConditions: any[] = [];
+              // ✅ Handle governanceTypology special case
+              if (field === 'governanceTypology') {
+                const cleanedValues = values.map((v: string) =>
+                  v === 'Public Private Partnership (PPP)' ? 'Public Private Partnership' : v
+                );
 
-              for (const val of values) {
-                const normalized = val.trim().toLowerCase();
-
-                // ✅ Match supportedChannels for UI-based features
-                if (['qr code', 'ussd', 'app', 'browser'].includes(normalized)) {
-                  orConditions.push({
-                    supportedChannels: { $regex: normalized, $options: 'i' },
-                  });
-                }
-
-                // ✅ Match Yes/yes for specific schema fields
-                if (normalized === 'apiusefunction') {
-                  orConditions.push({ apiUseFunction: { $regex: '^yes$', $options: 'i' } });
-                }
-                if (normalized === 'thirdpartyconnectionsenabled') {
-                  orConditions.push({ thirdPartyConnectionsEnabled: { $regex: '^yes$', $options: 'i' } });
-                }
-                if (normalized === 'realtimepaymentconfirmation') {
-                  orConditions.push({ realTimePaymentConfirmation: { $regex: '^yes$', $options: 'i' } });
-                }
-                if (normalized === 'pullrequesttopayenabled') {
-                  orConditions.push({ pullRequestToPayEnabled: { $regex: '^yes$', $options: 'i' } });
-                }
+                const regexConditions = cleanedValues.map((v) => ({
+                  [field]: { $regex: v, $options: 'i' },
+                }));
+                filterQueries.push({ $or: regexConditions });
+                continue;
               }
 
-              if (orConditions.length > 0) {
-                filterQueries.push({ $or: orConditions });
+              if (field === 'IPSFunctionality') {
+                const orConditions: any[] = [];
+
+                for (const val of values) {
+                  const normalized = val.trim().toLowerCase();
+
+                  // ✅ Match supportedChannels for UI-based features
+                  if (['qr code', 'ussd', 'app', 'browser'].includes(normalized)) {
+                    orConditions.push({
+                      supportedChannels: { $regex: normalized, $options: 'i' },
+                    });
+                  }
+
+                  // ✅ Match Yes/yes for specific schema fields
+                  if (normalized === 'apiusefunction') {
+                    orConditions.push({ apiUseFunction: { $regex: '^yes$', $options: 'i' } });
+                  }
+                  if (normalized === 'thirdpartyconnectionsenabled') {
+                    orConditions.push({ thirdPartyConnectionsEnabled: { $regex: '^yes$', $options: 'i' } });
+                  }
+                  if (normalized === 'realtimepaymentconfirmation') {
+                    orConditions.push({ realTimePaymentConfirmation: { $regex: '^yes$', $options: 'i' } });
+                  }
+                  if (normalized === 'pullrequesttopayenabled') {
+                    orConditions.push({ pullRequestToPayEnabled: { $regex: '^yes$', $options: 'i' } });
+                  }
+                }
+
+                if (orConditions.length > 0) {
+                  filterQueries.push({ $or: orConditions });
+                }
+              } else {
+                // ✅ Default handling for other filters
+                const regexConditions = values.map((v) => ({
+                  [field]: { $regex: v, $options: 'i' },
+                }));
+                filterQueries.push({ $or: regexConditions });
+              }
+            }
+
+            // ✅ Combine all filter conditions with $and
+            const query: any = filterQueries.length > 0 ? { $and: filterQueries } : {};
+
+            const matchingGeneral = await this.generalDataModel
+              .find(query)
+              .select('systemName')
+              .lean();
+
+            const matchingNames = new Set(matchingGeneral.map((g) => g.systemName));
+            filteredIpsList = ipsList.filter((ips) => matchingNames.has(ips.ipsName));
+          }
+
+          // ✅ Helper to safely sum numeric fields
+          const sumFields = (obj: any, fields: string[]) => {
+            return fields.reduce((sum, field) => {
+              const val = obj?.[field];
+              if (val !== null && val !== undefined && val !== '') {
+                const num = Number(val);
+                if (!isNaN(num)) {
+                  sum += num;
+                }
+              }
+              return sum;
+            }, 0);
+          };
+
+          // ✅ Step 1: Fetch enriched data for each IPS
+          const rawEnrichedData = await Promise.all(
+            filteredIpsList.map(async (ips) => {
+              const volume = await this.volumeDataModel.findOne({ systemName: ips.ipsName }).lean();
+              const value = await this.valueDataModel.findOne({ systemName: ips.ipsName }).lean();
+              const general = await this.generalDataModel.findOne({ systemName: ips.ipsName }).lean();
+
+              const totalVolumes = sumFields(volume, ['volumes2024']);
+              const totalValues = sumFields(value, ['values2024']);
+
+              return {
+                geography: ips.geography,
+                countryCode: this.getCountryCode(ips.geography),
+                ipsName: ips.ipsName,
+                supportedUseCases: general?.supportedUseCases || null,
+                volumes2024: totalVolumes || 0,
+                values2024: totalValues || 0,
+              };
+            })
+          );
+
+          // ✅ Step 2: Group by geography and aggregate
+          const groupedData = rawEnrichedData.reduce((acc, item) => {
+            const existing = acc[item.geography];
+            if (existing) {
+              existing.volumes2024 += item.volumes2024;
+              existing.values2024 += item.values2024;
+              existing.ipsNames.push(item.ipsName);
+              if (item.supportedUseCases) {
+                existing.supportedUseCasesSet.add(item.supportedUseCases);
               }
             } else {
-              // ✅ Default handling for other filters
-              const regexConditions = values.map((v) => ({
-                [field]: { $regex: v, $options: 'i' },
-              }));
-              filterQueries.push({ $or: regexConditions });
+              acc[item.geography] = {
+                category,
+                geography: item.geography,
+                countryCode: item.countryCode,
+                volumes2024: item.volumes2024,
+                values2024: item.values2024,
+                ipsNames: [item.ipsName],
+                supportedUseCasesSet: new Set(
+                  item.supportedUseCases ? [item.supportedUseCases] : []
+                ),
+              };
             }
-          }
+            return acc;
+          }, {} as Record<string, any>);
 
-          // ✅ Combine all filter conditions with $and
-          const query: any = filterQueries.length > 0 ? { $and: filterQueries } : {};
-
-          const matchingGeneral = await this.generalDataModel
-            .find(query)
-            .select('systemName')
-            .lean();
-
-          const matchingNames = new Set(matchingGeneral.map((g) => g.systemName));
-          filteredIpsList = ipsList.filter((ips) => matchingNames.has(ips.ipsName));
-        }
-
-        // ✅ Helper to safely sum numeric fields
-        const sumFields = (obj: any, fields: string[]) => {
-          return fields.reduce((sum, field) => {
-            const val = obj?.[field];
-            if (val !== null && val !== undefined && val !== '') {
-              const num = Number(val);
-              if (!isNaN(num)) {
-                sum += num;
-              }
-            }
-            return sum;
-          }, 0);
-        };
-
-        // ✅ Step 1: Fetch enriched data for each IPS
-        const rawEnrichedData = await Promise.all(
-          filteredIpsList.map(async (ips) => {
-            const volume = await this.volumeDataModel.findOne({ systemName: ips.ipsName }).lean();
-            const value = await this.valueDataModel.findOne({ systemName: ips.ipsName }).lean();
-            const general = await this.generalDataModel.findOne({ systemName: ips.ipsName }).lean();
-
-            const totalVolumes = sumFields(volume, ['volumes2024']);
-            const totalValues = sumFields(value, ['values2024']);
-
-            return {
-              geography: ips.geography,
-              countryCode: this.getCountryCode(ips.geography),
-              ipsName: ips.ipsName,
-              supportedUseCases: general?.supportedUseCases || null,
-              volumes2024: totalVolumes || 0,
-              values2024: totalValues || 0,
-            };
-          })
-        );
-
-        // ✅ Step 2: Group by geography and aggregate
-        const groupedData = rawEnrichedData.reduce((acc, item) => {
-          const existing = acc[item.geography];
-          if (existing) {
-            existing.volumes2024 += item.volumes2024;
-            existing.values2024 += item.values2024;
-            existing.ipsNames.push(item.ipsName);
-            if (item.supportedUseCases) {
-              existing.supportedUseCasesSet.add(item.supportedUseCases);
-            }
-          } else {
-            acc[item.geography] = {
-              category,
-              geography: item.geography,
-              countryCode: item.countryCode,
-              volumes2024: item.volumes2024,
-              values2024: item.values2024,
-              ipsNames: [item.ipsName],
-              supportedUseCasesSet: new Set(
-                item.supportedUseCases ? [item.supportedUseCases] : []
-              ),
-            };
-          }
-          return acc;
-        }, {} as Record<string, any>);
-
-        // ✅ Convert sets to arrays and finalize
-        enrichedData = Object.values(groupedData).map((item: any) => ({
-          category: item.category,
-          geography: item.geography,
-          countryCode: item.countryCode,
-          volumes2024: item.volumes2024,
-          values2024: item.values2024,
-          ipsNames: item.ipsNames,
-          supportedUseCases: Array.from(item.supportedUseCasesSet),
-        }));
-        break;
-      }
-
-      // ✅ Domestic In Development & No Domestic
-      case 'DOMESTIC: IN DEVELOPMENT':
-      case 'Countries with no domestic IPS activity':
-        enrichedData = ipsList.map((ips) => ({
-          category,
-          geography: ips.geography,
-          countryCode: this.getCountryCode(ips.geography),
-          status: ips.status || null,
-        }));
-        break;
-
-      // ✅ Regional categories
-      case 'LIVE: REGIONAL IPS':
-      case 'REGIONAL: IN DEVELOPMENT':
-      case 'IN PILOT PHASE': {
-        // ✅ Apply ipsNameFilter if provided
-        if (ipsNameFilter) {
-          const filterNames = Array.isArray(ipsNameFilter)
-            ? ipsNameFilter.map((v: string) => v.toLowerCase())
-            : [String(ipsNameFilter).toLowerCase()];
-
-          ipsList = ipsList.filter((ips) =>
-            ips.ipsName && filterNames.includes(ips.ipsName.toLowerCase())
-          );
-        }
-
-        enrichedData = ipsList.flatMap((ips) => {
-          const countries = this.splitCountries(ips.geographyCountries);
-          return countries.map((country) => ({
-            category,
-            country,
-            countryCode: this.getCountryCode(country),
-            ipsName: ips.ipsName,
-            ...(category !== 'LIVE: REGIONAL IPS' && { region: ips.region || null }),
+          // ✅ Convert sets to arrays and finalize
+          enrichedData = Object.values(groupedData).map((item: any) => ({
+            category: item.category,
+            geography: item.geography,
+            countryCode: item.countryCode,
+            volumes2024: item.volumes2024,
+            values2024: item.values2024,
+            ipsNames: item.ipsNames,
+            supportedUseCases: Array.from(item.supportedUseCasesSet),
           }));
-        });
-        break;
+          break;
+        }
+
+        // ✅ Domestic In Development & No Domestic
+        case 'DOMESTIC: IN DEVELOPMENT':
+        case 'Countries with no domestic IPS activity':
+          enrichedData = ipsList.map((ips) => ({
+            category,
+            geography: ips.geography,
+            countryCode: this.getCountryCode(ips.geography),
+            status: ips.status || null,
+          }));
+          break;
+
+        // ✅ Regional categories
+        case 'LIVE: REGIONAL IPS':
+        case 'REGIONAL: IN DEVELOPMENT':
+        case 'IN PILOT PHASE': {
+          // ✅ Apply ipsNameFilter if provided
+          if (ipsNameFilter) {
+            const filterNames = Array.isArray(ipsNameFilter)
+              ? ipsNameFilter.map((v: string) => v.toLowerCase())
+              : [String(ipsNameFilter).toLowerCase()];
+
+            ipsList = ipsList.filter((ips) =>
+              ips.ipsName && filterNames.includes(ips.ipsName.toLowerCase())
+            );
+          }
+
+          enrichedData = ipsList.flatMap((ips) => {
+            const countries = this.splitCountries(ips.geographyCountries);
+            return countries.map((country) => ({
+              category,
+              country,
+              countryCode: this.getCountryCode(country),
+              ipsName: ips.ipsName,
+              ...(category !== 'LIVE: REGIONAL IPS' && { region: ips.region || null }),
+            }));
+          });
+          break;
+        }
+
+        // ✅ Countries with no regional IPS activity
+        case 'Countries with no regional IPS activity':
+          enrichedData = ipsList.map((ips) => ({
+            category,
+            geography: ips.geography,
+            countryCode: this.getCountryCode(ips.geography),
+          }));
+          break;
       }
 
-      // ✅ Countries with no regional IPS activity
-      case 'Countries with no regional IPS activity':
-        enrichedData = ipsList.map((ips) => ({
-          category,
-          geography: ips.geography,
-          countryCode: this.getCountryCode(ips.geography),
-        }));
-        break;
+      allResults.push({
+        category,
+        total: enrichedData.length,
+        data: enrichedData,
+      });
     }
 
-    allResults.push({
-      category,
-      total: enrichedData.length,
-      data: enrichedData,
-    });
+    return {
+      categories,
+      totalCategories: categories.length,
+      results: allResults,
+    };
   }
-
-  return {
-    categories,
-    totalCategories: categories.length,
-    results: allResults,
-  };
-}
 
 
   // async getByCategoriesEnriched(
@@ -1054,7 +1054,7 @@ async getByCategoriesEnriched(
       'Seychelles': 'SC',
       'Sierra Leone': 'SL',
       'Somalia': 'SO',
-      "Somiland":'SO',
+      "Somiland": 'SO',
       'South Africa': 'ZA',
       'South Sudan': 'SS',
       'Sudan': 'SD',
@@ -1090,21 +1090,23 @@ async getByCategoriesEnriched(
     return null;
   }
 
-async findAll(): Promise<IpsActivity[]> {
-  const results = await this.ipsActivityModel
-    .find()
-    .collation({ locale: 'en', strength: 2 }) // Case-insensitive sort
-    .sort({ ipsName: 1 })
-    .exec();
+  async findAll(): Promise<IpsActivity[]> {
+    const results = await this.ipsActivityModel
+      .find()
+      .collation({ locale: 'en', strength: 2 }) // Case-insensitive sort
+      // .sort({ ipsName: 1 })
+      .sort({ geographicReach: 1 })
 
-  // ✅ Trim ipsName for each document
-  return results.map((doc) => {
-    if (doc.ipsName) {
-      doc.ipsName = doc.ipsName.trim();
-    }
-    return doc;
-  });
-}
+      .exec();
+
+    // ✅ Trim ipsName for each document
+    return results.map((doc) => {
+      if (doc.ipsName) {
+        doc.ipsName = doc.ipsName.trim();
+      }
+      return doc;
+    });
+  }
 
   ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
   ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
