@@ -1095,7 +1095,7 @@ export class IpslistService {
       .find()
       .collation({ locale: 'en', strength: 2 }) // Case-insensitive sort
       // .sort({ ipsName: 1 })
-      .sort({ geographicReach: 1 })
+      .sort({ geography: 1 })
 
       .exec();
 
