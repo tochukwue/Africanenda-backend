@@ -29,6 +29,8 @@ export class GoogleSheetService {
       .replace(/^(.)/, (match, group1) => group1.toLowerCase());
   }
 
+
+
 async fetchAndSyncGeneralData() {
   try {
     const credentials = JSON.parse(
@@ -127,99 +129,6 @@ async fetchAndSyncGeneralData() {
 }
 
 
-
-  // async fetchAndSyncGeneralData() {
-  //   try {
-  //     const credentials = JSON.parse(
-  //       fs.readFileSync(
-  //         path.resolve(__dirname, '../../../config/authentication-411609-dcd87bcd1c0b.json'),
-  //         'utf8'
-  //       )
-  //     );
-
-  //     const auth = new google.auth.GoogleAuth({
-  //       credentials,
-  //       scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-  //     });
-
-  //     const sheets = google.sheets({ version: 'v4', auth });
-
-  //     const spreadsheetId = '1VBLgF2JRCHh4RKPHhTB66yCD-Zc5Ru0wCxX3ZEDtTR0';
-
-  //     /** ✅ First: Sync "2025 data" sheet */
-  //     const rangeMain = '2025 data!A1:AZ';
-  //     const resMain = await sheets.spreadsheets.values.get({ spreadsheetId, range: rangeMain });
-  //     const rowsMain = resMain.data.values;
-
-  //     if (!rowsMain || rowsMain.length < 2) {
-  //       this.logger.warn('No data found in "2025 data" sheet.');
-  //     } else {
-  //       const headersMain = rowsMain[0];
-  //       const dataRowsMain = rowsMain.slice(1);
-
-  //       const headerMap: Record<string, string> = {
-  //         'IPS type': 'ipsType',
-  //         'Governance typology (Industry, PPP, Central Bank led)': 'governanceTypology',
-  //         // Add more mappings if required
-  //       };
-
-  //       for (const row of dataRowsMain) {
-  //         const rowData: any = {};
-  //         headersMain.forEach((header, index) => {
-  //           const normalizedHeader = headerMap[header] || this.camelCase(header);
-  //           rowData[normalizedHeader] = row[index] || '';
-  //         });
-
-  //         await this.generalDataModel.updateOne(
-  //           { systemName: rowData.systemName },
-  //           { $set: rowData },
-  //           { upsert: true }
-  //         );
-  //       }
-
-  //       this.logger.log(`Synced ${dataRowsMain.length} rows from "2025 data" sheet.`);
-  //     }
-
-  //     /** ✅ Second: Sync "Inclusivity Spectrum Analysis" sheet */
-  //     const rangeInclusivity = 'Inclusivity Spectrum Analysis!A5:Z'; // Starts from row 5
-  //     const resInclusivity = await sheets.spreadsheets.values.get({
-  //       spreadsheetId,
-  //       range: rangeInclusivity,
-  //     });
-  //     const rowsInclusivity = resInclusivity.data.values;
-
-  //     if (!rowsInclusivity || rowsInclusivity.length < 2) {
-  //       this.logger.warn('No data found in "Inclusivity Spectrum Analysis" sheet.');
-  //     } else {
-  //       const headersInc = rowsInclusivity[0];
-  //       const dataRowsInc = rowsInclusivity.slice(1);
-
-  //       const systemNameIndex = headersInc.findIndex(h => h.trim().toLowerCase() === 'system name');
-  //       const statusIndex = headersInc.findIndex(h => h.trim().toLowerCase() === 'status');
-
-  //       if (systemNameIndex === -1 || statusIndex === -1) {
-  //         throw new Error('"System name" or "Status" column not found in Inclusivity sheet.');
-  //       }
-
-  //       for (const row of dataRowsInc) {
-  //         const systemName = row[systemNameIndex]?.trim();
-  //         const status = row[statusIndex]?.trim();
-
-  //         if (!systemName) continue;
-
-  //         await this.generalDataModel.updateOne(
-  //           { systemName: systemName },
-  //           { $set: { inclusivityRanking: status } }, // ✅ Update inclusivityRanking instead
-  //           { upsert: false } // Do not create new record if it doesn't exist
-  //         );
-  //       }
-
-  //       this.logger.log(`Updated inclusivityRanking for ${dataRowsInc.length} rows from "Inclusivity Spectrum Analysis".`);
-  //     }
-  //   } catch (error) {
-  //     this.logger.error('Error fetching data from Google Sheets', error);
-  //   }
-  // }
 
 
   async fetchAndSyncVolumeData() {

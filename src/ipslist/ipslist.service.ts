@@ -329,43 +329,47 @@ export class IpslistService {
   }
 
 
-  async getGeneralDataGroupedByRegionAndCountry() {
-    const records = await this.generalDataModel.find().lean();
+async getGeneralDataGroupedByRegionAndCountry() {
+  const records = await this.generalDataModel.find().lean();
 
-    // Group by geographicRegion and then geographicReach
-    const groupedByRegion = records.reduce((acc, record) => {
-      const region = record.geographicRegion || 'Unknown';
-      const country = record.geographicReach || 'Unknown';
+  // Group by geographicRegion and then geographicReach
+  const groupedByRegion = records.reduce((acc, record) => {
+    const region = record.geographicRegion?.trim();
+    const country = record.geographicReach?.trim();
 
-      if (!acc[region]) {
-        acc[region] = {};
-      }
-      if (!acc[region][country]) {
-        acc[region][country] = [];
-      }
+    // ✅ Skip records without valid region or country
+    if (!region || !country) return acc;
 
-      acc[region][country].push({
-        systemName: record.systemName,
-        geographicReach: record.geographicReach,
-        geographicRegion: record.geographicRegion,
-        countryCode: this.getCountryCode(record.geographicReach),
-      });
+    if (!acc[region]) {
+      acc[region] = {};
+    }
+    if (!acc[region][country]) {
+      acc[region][country] = [];
+    }
 
-      return acc;
-    }, {} as Record<string, Record<string, any[]>>);
+    acc[region][country].push({
+      systemName: record.systemName?.trim(),
+      geographicReach: country,
+      geographicRegion: region,
+      countryCode: this.getCountryCode(country),
+    });
 
-    // Convert into structured array
-    return Object.entries(groupedByRegion).map(([region, countries]) => ({
-      region,
-      totalCountries: Object.keys(countries).length,
-      countries: Object.entries(countries).map(([country, data]) => ({
-        country,
-        countryCode: this.getCountryCode(country),
-        totalSystems: data.length,
-        data,
-      })),
-    }));
-  }
+    return acc;
+  }, {} as Record<string, Record<string, any[]>>);
+
+  // Convert into structured array
+  return Object.entries(groupedByRegion).map(([region, countries]) => ({
+    region,
+    totalCountries: Object.keys(countries).length,
+    countries: Object.entries(countries).map(([country, data]) => ({
+      country,
+      countryCode: this.getCountryCode(country),
+      totalSystems: data.length,
+      data,
+    })),
+  }));
+}
+
 
 
   //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
@@ -382,17 +386,17 @@ export class IpslistService {
     const categoryAliases: Record<string, string> = {
       'LIVE: DOMESTIC IPS': 'Live',
       'DOMESTIC: IN DEVELOPMENT': 'In-development',
-      'Countries with no domestic IPS activity': 'No IPS Activity',
+      'Countries with no domestic IPS activity': 'No Domestic IPS Activity',
       'LIVE: REGIONAL IPS': 'Live',
       'REGIONAL: IN DEVELOPMENT': 'In-development',
       'IN PILOT PHASE': 'Pilot',
-      'Countries with no regional IPS activity': 'No IPS Activity',
-      'IN PILOT': 'Pilot',
+      'Countries with no regional IPS activity': 'No Cross-Border IPS Activity',
+      // 'IN PILOT': 'Pilot',
     };
 
     const domesticCategories = [
       'LIVE: DOMESTIC IPS',
-      'IN PILOT',
+      // 'IN PILOT',
       'DOMESTIC: IN DEVELOPMENT',
       'Countries with no domestic IPS activity',
 
@@ -903,8 +907,8 @@ async findAll(): Promise<IpsActivity[]> {
         {
           category: 'LIVE: DOMESTIC IPS',
           headers: ['ipsName', 'geography', 'region', 'ipsType'],
-          start: 3,
-          end: 33,
+          start: 2,
+          end: 34,
         },
         {
           category: 'DOMESTIC: IN DEVELOPMENT',
