@@ -1196,7 +1196,7 @@ export class IpslistService {
         category: 'LIVE: DOMESTIC IPS',
         headers: ['ipsName', 'geography', 'region', 'ipsType'],
         start: 2,
-        end: 34,
+        end: 35,
       },
       {
         category: 'DOMESTIC: IN DEVELOPMENT',
