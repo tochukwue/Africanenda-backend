@@ -43,16 +43,92 @@ export class IpslistService {
   /**
    * Get GeneralData list by geographicReach
    */
-  async getByGeographicReach(geographicReach: string): Promise<GeneralData[]> {
-    if (!geographicReach) {
-      throw new BadRequestException('geographicReach is required.');
-    }
-
-    return this.generalDataModel
-      .find({ geographicReach: { $regex: new RegExp(`^${geographicReach}$`, 'i') } })
-      .lean()
-      .exec();
+  async getByGeographicReach(geographicReach: string): Promise<any[]> {
+  if (!geographicReach) {
+    throw new BadRequestException('geographicReach is required.');
   }
+
+  const records = await this.generalDataModel
+    .find({ geographicReach: { $regex: new RegExp(`^${geographicReach}$`, 'i') } })
+    .lean()
+    .exec();
+
+  // Define the desired field order
+  const fieldOrder = [
+    'systemName',
+    'geographicReach',
+    'gender',
+    'geographicRegion',
+    'coverage',
+    'yearOfEstablishment',
+    'ipsType',
+    'interoperabilityArrangement',
+    'governanceTypology',
+    'ownershipModel',
+    'systemOwner',
+    'overseer',
+    'systemGovernance',
+    'operator',
+    'settlementAgent',
+    'numberOfUniqueIpsEndUsers',
+    'totalNumberOfParticipants2025',
+    'numberOfDirectParticipantsCommercialBanks',
+    'numberOfDirectParticipantsEMoneyIssuers',
+    'numberOfDirectParticipantsMFIs',
+    'numberOfDirectParticipantsOther',
+    'numberOfDirectParticipantsPostOffice',
+    'indirectParticipantsType',
+    'numberOfIndirectParticipants',
+    'supportedUseCases',
+    'supportedInstruments',
+    'primaryLocalChannel',
+    'supportedChannels',
+    'qrCodeEnabledType',
+    'messagingStandard',
+    'proxyId',
+    'otherProxyIdType',
+    'businessModel',
+    'pricingStructure',
+    'schemeRulesPublic',
+    'additionalRecourseRequirements',
+    'disputeResolutionMechanism',
+    'apiUseFunction',
+    'startupFundingSource',
+    'participationInDecisionMaking',
+    'mechanismForDecisionMaking',
+    'abilityToBecomeDirectParticipants',
+    'entitiesThatCannotParticipate',
+    'nonBankingFIsSponsorship',
+    'minValueForTransactions',
+    'corporateStructure',
+    'otherCorporateStructure',
+    'pullRequestToPayEnabled',
+    'thirdPartyConnectionsEnabled',
+    'realTimePaymentConfirmation',
+    'transactionValidationEnabled',
+    'inclusivityRanking',
+  ];
+
+  // Reorder fields according to fieldOrder
+  return records.map(record => {
+    const ordered: Record<string, any> = {};
+    fieldOrder.forEach(field => {
+      ordered[field] = record[field] ?? '';
+    });
+    return ordered;
+  });
+}
+
+  // async getByGeographicReach(geographicReach: string): Promise<GeneralData[]> {
+  //   if (!geographicReach) {
+  //     throw new BadRequestException('geographicReach is required.');
+  //   }
+
+  //   return this.generalDataModel
+  //     .find({ geographicReach: { $regex: new RegExp(`^${geographicReach}$`, 'i') } })
+  //     .lean()
+  //     .exec();
+  // }
 
   async getValueDataWithCountryCode(systemNames: string[], startYear?: number, endYear?: number) {
     if (!Array.isArray(systemNames) || systemNames.length === 0) {
