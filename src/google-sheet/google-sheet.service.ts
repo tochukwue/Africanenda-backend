@@ -198,7 +198,8 @@ async fetchAndSyncGeneralData() {
         'third party connections enabled (y/n)': 'thirdPartyConnectionsEnabled',
         'real-time payment confirmation message enabled (y/n)': 'realTimePaymentConfirmation',
         'pull "request to pay" enabled (y/n)': 'pullRequestToPayEnabled',
-        "coverage":"Coverage (Domestic/Regional)"
+        "coverage (domestic/regional)":"coverage",
+        "interoperability arrangement (bilateral/multilateral)" :"interoperabilityArrangement"
       };
 
       for (let i = 0; i < Math.min(dataRowsMain.length, 1000); i++) {
