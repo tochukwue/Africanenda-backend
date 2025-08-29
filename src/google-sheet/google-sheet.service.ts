@@ -30,415 +30,460 @@ export class GoogleSheetService {
   }
 
 
-async fetchAndSyncGeneralData() {
-  try {
-    const credentials = JSON.parse(
-      fs.readFileSync(
-        path.resolve(__dirname, '../../../config/authentication-411609-dcd87bcd1c0b.json'),
-        'utf8'
-      )
-    );
+  async fetchAndSyncGeneralData() {
+    try {
+      const credentials = JSON.parse(
+        fs.readFileSync(
+          path.resolve(__dirname, '../../../config/authentication-411609-dcd87bcd1c0b.json'),
+          'utf8'
+        )
+      );
 
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-    });
-
-    const sheets = google.sheets({ version: 'v4', auth });
-    const spreadsheetId = '1VBLgF2JRCHh4RKPHhTB66yCD-Zc5Ru0wCxX3ZEDtTR0';
-
-    // Helper function to clean and normalize system names for comparison
-    const cleanSystemName = (name) => {
-      if (!name) return '';
-      return String(name)
-        .trim()
-        .replace(/\s+/g, ' ')
-        .replace(/['"'""`]/g, '"') // Normalize quotes
-        .replace(/[–—]/g, '-') // Normalize dashes
-        .replace(/\u00A0/g, ' ') // Replace non-breaking spaces
-        .toLowerCase();
-    };
-
-    // Helper function for fuzzy matching
-    const fuzzyMatch = (str1, str2, threshold = 0.9) => {
-      const clean1 = cleanSystemName(str1);
-      const clean2 = cleanSystemName(str2);
-      
-      if (clean1 === clean2) return true;
-      
-      // Check if one contains the other (for partial matches)
-      if (clean1.includes(clean2) || clean2.includes(clean1)) {
-        return true;
-      }
-      
-      // Simple similarity check
-      const longer = clean1.length > clean2.length ? clean1 : clean2;
-      const shorter = clean1.length > clean2.length ? clean2 : clean1;
-      
-      if (longer.length === 0) return false;
-      
-      const similarity = (longer.length - levenshteinDistance(longer, shorter)) / longer.length;
-      return similarity >= threshold;
-    };
-
-    // Simple Levenshtein distance function
-    const levenshteinDistance = (str1, str2) => {
-      const matrix = [];
-      
-      for (let i = 0; i <= str2.length; i++) {
-        matrix[i] = [i];
-      }
-      
-      for (let j = 0; j <= str1.length; j++) {
-        matrix[0][j] = j;
-      }
-      
-      for (let i = 1; i <= str2.length; i++) {
-        for (let j = 1; j <= str1.length; j++) {
-          if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
-            matrix[i][j] = matrix[i - 1][j - 1];
-          } else {
-            matrix[i][j] = Math.min(
-              matrix[i - 1][j - 1] + 1,
-              matrix[i][j - 1] + 1,
-              matrix[i - 1][j] + 1
-            );
-          }
-        }
-      }
-      
-      return matrix[str2.length][str1.length];
-    };
-
-    /** ✅ First: Sync "2025 data" sheet */
-    const rangeMain = '2025 data!A:ZZ';
-    
-    const approaches = [
-      {
-        name: 'UNFORMATTED_VALUE',
-        params: {
-          spreadsheetId,
-          range: rangeMain,
-          valueRenderOption: 'UNFORMATTED_VALUE',
-          dateTimeRenderOption: 'FORMATTED_STRING'
-        }
-      },
-      {
-        name: 'FORMATTED_VALUE', 
-        params: {
-          spreadsheetId,
-          range: rangeMain,
-          valueRenderOption: 'FORMATTED_VALUE',
-          dateTimeRenderOption: 'FORMATTED_STRING'
-        }
-      }
-    ];
-
-    let rowsMain = null;
-    let bestApproach = null;
-
-    for (const approach of approaches) {
-      try {
-        this.logger.log(`Trying approach: ${approach.name}`);
-        const resMain = await sheets.spreadsheets.values.get(approach.params);
-        const testRows = resMain.data.values;
-        
-        if (testRows && testRows.length > 1) {
-          let maxCellLength = 0;
-          let longestCell = '';
-          
-          testRows.slice(1, 6).forEach((row) => {
-            row.forEach((cell) => {
-              if (cell != null) {
-                const cellStr = String(cell);
-                if (cellStr.length > maxCellLength) {
-                  maxCellLength = cellStr.length;
-                  longestCell = cellStr;
-                }
-              }
-            });
-          });
-          
-          this.logger.log(`${approach.name} - Longest cell: ${maxCellLength} chars`);
-          
-          if (!bestApproach || maxCellLength > bestApproach.maxLength) {
-            bestApproach = {
-              approach: approach.name,
-              data: testRows,
-              maxLength: maxCellLength
-            };
-          }
-        }
-      } catch (error) {
-        this.logger.warn(`Approach ${approach.name} failed:`, error.message);
-      }
-    }
-
-    if (!bestApproach) {
-      this.logger.error('All approaches failed to fetch data');
-      return;
-    }
-
-    this.logger.log(`Using best approach: ${bestApproach.approach}`);
-    rowsMain = bestApproach.data;
-
-    // Store all system names from main data for comparison later
-    const mainSystemNames = new Set();
-
-    if (!rowsMain || rowsMain.length < 2) {
-      this.logger.warn('No data found in "2025 data" sheet.');
-    } else {
-      const headersMain = rowsMain[0];
-      const dataRowsMain = rowsMain.slice(1);
-
-      const headerMap: Record<string, string> = {
-        'ips type': 'ipsType',
-        'governance typology (industry, ppp, central bank led)': 'governanceTypology',
-        'api use function': 'apiUseFunction',
-        'third party connections enabled (y/n)': 'thirdPartyConnectionsEnabled',
-        'real-time payment confirmation message enabled (y/n)': 'realTimePaymentConfirmation',
-        'pull "request to pay" enabled (y/n)': 'pullRequestToPayEnabled',
-        "coverage (domestic/regional)":"coverage",
-        "interoperability arrangement (bilateral/multilateral)" :"interoperabilityArrangement"
-      };
-
-      for (let i = 0; i < Math.min(dataRowsMain.length, 1000); i++) {
-        const row = dataRowsMain[i];
-        
-        if (!row || row.every(cell => !cell || String(cell).trim() === '')) {
-          continue;
-        }
-        
-        const rowData: any = {};
-
-        headersMain.forEach((header, index) => {
-          if (!header) return;
-          
-          const cleanedHeader = String(header).trim().toLowerCase();
-          const normalizedHeader = headerMap[cleanedHeader] || this.camelCase(cleanedHeader);
-          
-          const rawValue = (index < row.length) ? row[index] : '';
-          let cellValue = rawValue != null ? String(rawValue) : '';
-          
-          // Clean whitespace
-          cellValue = cellValue.trim().replace(/\s+/g, ' ');
-          
-          rowData[normalizedHeader] = cellValue;
-        });
-
-        const cleanedSystemName = String(rowData.systemName || '').trim().replace(/\s+/g, ' ');
-        if (!cleanedSystemName) {
-          continue;
-        }
-
-        // Store the cleaned system name
-        mainSystemNames.add(cleanedSystemName);
-        rowData.systemName = cleanedSystemName;
-
-        // Clean all data before saving
-        const cleanedRowData: any = {};
-        Object.keys(rowData).forEach(key => {
-          const value = rowData[key];
-          if (value != null && value !== '') {
-            cleanedRowData[key] = String(value).trim().replace(/\s+/g, ' ');
-          } else {
-            cleanedRowData[key] = '';
-          }
-        });
-
-        await this.generalDataModel.updateOne(
-          { systemName: cleanedRowData.systemName },
-          { $set: cleanedRowData },
-          { upsert: true }
-        );
-      }
-
-      this.logger.log(`Synced ${dataRowsMain.length} rows from "2025 data" sheet.`);
-      this.logger.log(`Total unique system names: ${mainSystemNames.size}`);
-    }
-
-    /** ✅ Second: Enhanced Inclusivity Spectrum Analysis sync with detailed debugging */
-    const rangeInclusivity = 'Inclusivity Spectrum Analysis!A:ZZ';
-    
-    const resInclusivity = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: rangeInclusivity,
-      valueRenderOption: bestApproach.approach,
-      dateTimeRenderOption: 'FORMATTED_STRING'
-    });
-
-    const rowsInclusivity = resInclusivity.data.values;
-
-    if (!rowsInclusivity || rowsInclusivity.length < 6) {
-      this.logger.warn('No data found in "Inclusivity Spectrum Analysis" sheet.');
-    } else {
-      this.logger.log(`Inclusivity sheet total rows: ${rowsInclusivity.length}`);
-      
-      if (rowsInclusivity.length <= 4) {
-        this.logger.error('Inclusivity Spectrum Analysis sheet does not have enough rows for headers at row 5');
-        return;
-      }
-
-      const headersInc = rowsInclusivity[4];
-      const dataRowsInc = rowsInclusivity.slice(5);
-
-      // Find system name and status columns
-      const systemNameIndex = headersInc.findIndex(h => {
-        if (h == null) return false;
-        const headerStr = String(h).trim().toLowerCase();
-        return headerStr === 'system name' || headerStr === 'systemname' || headerStr.includes('system');
+      const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
       });
 
-      const statusIndexes = headersInc
-        .map((h, i) => {
-          if (h == null) return -1;
-          const headerStr = String(h).trim().toLowerCase();
-          return (headerStr === 'status' || headerStr.includes('status')) ? i : -1;
-        })
-        .filter(i => i !== -1);
+      const sheets = google.sheets({ version: 'v4', auth });
+      const spreadsheetId = '1VBLgF2JRCHh4RKPHhTB66yCD-Zc5Ru0wCxX3ZEDtTR0';
 
-      this.logger.log(`System name column index: ${systemNameIndex}`);
-      this.logger.log(`Status column indexes: ${JSON.stringify(statusIndexes)}`);
+      // Helper function to clean and normalize system names for comparison
+      const cleanSystemName = (name) => {
+        if (!name) return '';
+        return String(name)
+          .trim()
+          .replace(/\s+/g, ' ')
+          .replace(/['"'""`]/g, '"') // Normalize quotes
+          .replace(/[–—]/g, '-') // Normalize dashes
+          .replace(/\u00A0/g, ' ') // Replace non-breaking spaces
+          .toLowerCase();
+      };
 
-      if (systemNameIndex === -1 || statusIndexes.length === 0) {
-        this.logger.error('Required columns not found in Inclusivity Spectrum Analysis sheet.');
-        this.logger.log('Available headers:', headersInc.map((h, i) => `${i}: "${h}"`));
+      // Helper function for fuzzy matching
+      const fuzzyMatch = (str1, str2, threshold = 0.9) => {
+        const clean1 = cleanSystemName(str1);
+        const clean2 = cleanSystemName(str2);
+
+        if (clean1 === clean2) return true;
+
+        // Check if one contains the other (for partial matches)
+        if (clean1.includes(clean2) || clean2.includes(clean1)) {
+          return true;
+        }
+
+        // Simple similarity check
+        const longer = clean1.length > clean2.length ? clean1 : clean2;
+        const shorter = clean1.length > clean2.length ? clean2 : clean1;
+
+        if (longer.length === 0) return false;
+
+        const similarity = (longer.length - levenshteinDistance(longer, shorter)) / longer.length;
+        return similarity >= threshold;
+      };
+
+      // Simple Levenshtein distance function
+      const levenshteinDistance = (str1, str2) => {
+        const matrix = [];
+
+        for (let i = 0; i <= str2.length; i++) {
+          matrix[i] = [i];
+        }
+
+        for (let j = 0; j <= str1.length; j++) {
+          matrix[0][j] = j;
+        }
+
+        for (let i = 1; i <= str2.length; i++) {
+          for (let j = 1; j <= str1.length; j++) {
+            if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+              matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+              matrix[i][j] = Math.min(
+                matrix[i - 1][j - 1] + 1,
+                matrix[i][j - 1] + 1,
+                matrix[i - 1][j] + 1
+              );
+            }
+          }
+        }
+
+        return matrix[str2.length][str1.length];
+      };
+
+      /** ✅ First: Sync "2025 data" sheet */
+      const rangeMain = '2025 data!A:ZZ';
+
+      const approaches = [
+        {
+          name: 'UNFORMATTED_VALUE',
+          params: {
+            spreadsheetId,
+            range: rangeMain,
+            valueRenderOption: 'UNFORMATTED_VALUE',
+            dateTimeRenderOption: 'FORMATTED_STRING'
+          }
+        },
+        {
+          name: 'FORMATTED_VALUE',
+          params: {
+            spreadsheetId,
+            range: rangeMain,
+            valueRenderOption: 'FORMATTED_VALUE',
+            dateTimeRenderOption: 'FORMATTED_STRING'
+          }
+        }
+      ];
+
+      let rowsMain = null;
+      let bestApproach = null;
+
+      for (const approach of approaches) {
+        try {
+          this.logger.log(`Trying approach: ${approach.name}`);
+          const resMain = await sheets.spreadsheets.values.get(approach.params);
+          const testRows = resMain.data.values;
+
+          if (testRows && testRows.length > 1) {
+            let maxCellLength = 0;
+            let longestCell = '';
+
+            testRows.slice(1, 6).forEach((row) => {
+              row.forEach((cell) => {
+                if (cell != null) {
+                  const cellStr = String(cell);
+                  if (cellStr.length > maxCellLength) {
+                    maxCellLength = cellStr.length;
+                    longestCell = cellStr;
+                  }
+                }
+              });
+            });
+
+            this.logger.log(`${approach.name} - Longest cell: ${maxCellLength} chars`);
+
+            if (!bestApproach || maxCellLength > bestApproach.maxLength) {
+              bestApproach = {
+                approach: approach.name,
+                data: testRows,
+                maxLength: maxCellLength
+              };
+            }
+          }
+        } catch (error) {
+          this.logger.warn(`Approach ${approach.name} failed:`, error.message);
+        }
+      }
+
+      if (!bestApproach) {
+        this.logger.error('All approaches failed to fetch data');
         return;
       }
 
-      const statusIndex = statusIndexes[0];
+      this.logger.log(`Using best approach: ${bestApproach.approach}`);
+      rowsMain = bestApproach.data;
 
-      let updatedCount = 0;
-      let processedCount = 0;
-      const unmatchedSystems = [];
-      const matchedSystems = [];
+      // Store all system names from main data for comparison later
+      const mainSystemNames = new Set();
 
-      // Get all existing system names from database for comparison
-      const existingSystemNames = await this.generalDataModel.find({}, { systemName: 1, _id: 0 }).lean();
-      const dbSystemNames = existingSystemNames.map(doc => doc.systemName);
-      
-      this.logger.log(`Found ${dbSystemNames.length} system names in database`);
+      if (!rowsMain || rowsMain.length < 2) {
+        this.logger.warn('No data found in "2025 data" sheet.');
+      } else {
+        const headersMain = rowsMain[0];
+        const dataRowsMain = rowsMain.slice(1);
 
-      for (let i = 0; i < dataRowsInc.length; i++) {
-        const row = dataRowsInc[i];
-        
-        if (!row || row.every(cell => !cell || String(cell).trim() === '')) {
-          continue;
-        }
-        
-        if (row.length <= Math.max(systemNameIndex, statusIndex)) {
-          continue;
-        }
+        const headerMap: Record<string, string> = {
+          'system name': 'systemName',
+          'geographic reach': 'geographicReach',
+          'gender': 'gender',
+          'geographic region': 'geographicRegion',
+          'coverage (domestic/regional)': 'coverage',
+          'year of establishment': 'yearOfEstablishment',
+          'ips type': 'ipsType',
+          'interoperability arrangement (bilateral/multilateral)': 'interoperabilityArrangement',
+          'governance typology (industry, ppp, central bank led)': 'governanceTypology',
+          'ownership model': 'ownershipModel',
+          'system owner': 'systemOwner',
+          'overseer': 'overseer',
+          'system governance': 'systemGovernance',
+          'operator': 'operator',
+          'settlement agent': 'settlementAgent',
+          'number of unique ips end users': 'numberOfUniqueIpsEndUsers',
+          'total number of participants (2025)': 'totalNumberOfParticipants2025',
+          'number of direct participants - commercial banks': 'numberOfDirectParticipantsCommercialBanks',
+          'number of direct participants - e-money issuers': 'numberOfDirectParticipantsEMoneyIssuers',
+          'number of direct participants - mfis': 'numberOfDirectParticipantsMFIs',
+          'number of direct participants - other': 'numberOfDirectParticipantsOther',
+          'number of direct participants - post office': 'numberOfDirectParticipantsPostOffice',
+          'indirect participants (type)': 'indirectParticipantsType',
+          'number of indirect participants': 'numberOfIndirectParticipants',
+          'supported use cases': 'supportedUseCases',
+          'supported instruments': 'supportedInstruments',
+          'primary local channel': 'primaryLocalChannel',
+          'supported channels': 'supportedChannels',
+          'if qr code enabled:  static/dynamic/both': 'qrCodeEnabledType',
+          'messaging standard': 'messagingStandard',
+          'proxy id': 'proxyId',
+          "if 'other' proxy id, type": 'otherProxyIdType',
+          'business model': 'businessModel',
+          'pricing structure': 'pricingStructure',
+          'scheme rules shared or publically available?': 'schemeRulesPublic',
+          'additional recourse requirements': 'additionalRecourseRequirements',
+          'dispute resolution mechanism': 'disputeResolutionMechanism',
+          'api use function': 'apiUseFunction',
+          'startup funding source': 'startupFundingSource',
+          'participation in decision-making process (y/n)': 'participationInDecisionMaking',
+          'mechanism for participation in decision-making': 'mechanismForDecisionMaking',
+          'ability to become direct participants in the system (y/n)': 'abilityToBecomeDirectParticipants',
+          'entities that cannot participate': 'entitiesThatCannotParticipate',
+          'non-banking financial institutions ability to participate by sponsorship (y/n)': 'nonBankingFIsSponsorship',
+          'min. value for transactions processed (local currency)': 'minValueForTransactions',
+          'corporate structure of system': 'corporateStructure',
+          'if other corporate structure, please specify': 'otherCorporateStructure',
+          'pull "request to pay" enabled (y/n)': 'pullRequestToPayEnabled',
+          'third party connections enabled (y/n)': 'thirdPartyConnectionsEnabled',
+          'real-time payment confirmation message enabled (y/n)': 'realTimePaymentConfirmation',
+          'transaction validation enabled (y/n)': 'transactionValidationEnabled',
+          // Extra schema field not in sheet (but kept in schema)
+          'inclusivity ranking': 'inclusivityRanking',
+        };
 
-        // Clean the system name and status
-        let systemName = row[systemNameIndex] != null ? String(row[systemNameIndex]).trim().replace(/\s+/g, ' ') : '';
-        const statusValue = row[statusIndex] != null ? String(row[statusIndex]).trim().replace(/\s+/g, ' ') : '';
+        for (let i = 0; i < Math.min(dataRowsMain.length, 1000); i++) {
+          const row = dataRowsMain[i];
 
-        if (!systemName) {
-          continue;
-        }
-
-        processedCount++;
-
-        // Debug specific system names
-        if (systemName.includes('Virement') || systemName.includes('Somalia') || systemName.includes('SIPS')) {
-          this.logger.log(`🔍 DEBUGGING TARGET SYSTEM: "${systemName}"`);
-          this.logger.log(`🔍 Original raw value: "${row[systemNameIndex]}"`);
-          this.logger.log(`🔍 Status value: "${statusValue}"`);
-          this.logger.log(`🔍 Cleaned system name: "${systemName}"`);
-          this.logger.log(`🔍 System name length: ${systemName.length}`);
-          this.logger.log(`🔍 Character codes: ${systemName.split('').map(c => c.charCodeAt(0)).join(', ')}`);
-        }
-
-        // Try exact match first
-        const updateResult = await this.generalDataModel.updateOne(
-          { systemName: systemName },
-          { $set: { inclusivityRanking: statusValue || '' } },
-          { upsert: false }
-        );
-
-        if (updateResult.matchedCount > 0) {
-          updatedCount++;
-          matchedSystems.push(systemName);
-          
-          if (systemName.includes('Virement') || systemName.includes('Somalia') || systemName.includes('SIPS')) {
-            this.logger.log(`✅ EXACT MATCH FOUND for: "${systemName}"`);
+          if (!row || row.every(cell => !cell || String(cell).trim() === '')) {
+            continue;
           }
-        } else {
-          // Try fuzzy matching
-          let foundMatch = false;
-          
-          for (const dbSystemName of dbSystemNames) {
-            if (fuzzyMatch(systemName, dbSystemName, 0.85)) {
-              this.logger.log(`🔄 FUZZY MATCH: "${systemName}" -> "${dbSystemName}"`);
-              
-              const fuzzyUpdateResult = await this.generalDataModel.updateOne(
-                { systemName: dbSystemName },
-                { $set: { inclusivityRanking: statusValue || '' } },
-                { upsert: false }
-              );
-              
-              if (fuzzyUpdateResult.matchedCount > 0) {
-                updatedCount++;
-                matchedSystems.push(`${systemName} -> ${dbSystemName}`);
-                foundMatch = true;
-                break;
+
+          const rowData: any = {};
+
+          headersMain.forEach((header, index) => {
+            if (!header) return;
+
+            const cleanedHeader = String(header).trim().toLowerCase();
+            const normalizedHeader = headerMap[cleanedHeader] || this.camelCase(cleanedHeader);
+
+            const rawValue = (index < row.length) ? row[index] : '';
+            let cellValue = rawValue != null ? String(rawValue) : '';
+
+            // Clean whitespace
+            cellValue = cellValue.trim().replace(/\s+/g, ' ');
+
+            rowData[normalizedHeader] = cellValue;
+          });
+
+          const cleanedSystemName = String(rowData.systemName || '').trim().replace(/\s+/g, ' ');
+          if (!cleanedSystemName) {
+            continue;
+          }
+
+          // Store the cleaned system name
+          mainSystemNames.add(cleanedSystemName);
+          rowData.systemName = cleanedSystemName;
+
+          // Clean all data before saving
+          const cleanedRowData: any = {};
+          Object.keys(rowData).forEach(key => {
+            const value = rowData[key];
+            if (value != null && value !== '') {
+              cleanedRowData[key] = String(value).trim().replace(/\s+/g, ' ');
+            } else {
+              cleanedRowData[key] = '';
+            }
+          });
+
+          await this.generalDataModel.updateOne(
+            { systemName: cleanedRowData.systemName },
+            { $set: cleanedRowData },
+            { upsert: true }
+          );
+        }
+
+        this.logger.log(`Synced ${dataRowsMain.length} rows from "2025 data" sheet.`);
+        this.logger.log(`Total unique system names: ${mainSystemNames.size}`);
+      }
+
+      /** ✅ Second: Enhanced Inclusivity Spectrum Analysis sync with detailed debugging */
+      const rangeInclusivity = 'Inclusivity Spectrum Analysis!A:ZZ';
+
+      const resInclusivity = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: rangeInclusivity,
+        valueRenderOption: bestApproach.approach,
+        dateTimeRenderOption: 'FORMATTED_STRING'
+      });
+
+      const rowsInclusivity = resInclusivity.data.values;
+
+      if (!rowsInclusivity || rowsInclusivity.length < 6) {
+        this.logger.warn('No data found in "Inclusivity Spectrum Analysis" sheet.');
+      } else {
+        this.logger.log(`Inclusivity sheet total rows: ${rowsInclusivity.length}`);
+
+        if (rowsInclusivity.length <= 4) {
+          this.logger.error('Inclusivity Spectrum Analysis sheet does not have enough rows for headers at row 5');
+          return;
+        }
+
+        const headersInc = rowsInclusivity[4];
+        const dataRowsInc = rowsInclusivity.slice(5);
+
+        // Find system name and status columns
+        const systemNameIndex = headersInc.findIndex(h => {
+          if (h == null) return false;
+          const headerStr = String(h).trim().toLowerCase();
+          return headerStr === 'system name' || headerStr === 'systemname' || headerStr.includes('system');
+        });
+
+        const statusIndexes = headersInc
+          .map((h, i) => {
+            if (h == null) return -1;
+            const headerStr = String(h).trim().toLowerCase();
+            return (headerStr === 'status' || headerStr.includes('status')) ? i : -1;
+          })
+          .filter(i => i !== -1);
+
+        this.logger.log(`System name column index: ${systemNameIndex}`);
+        this.logger.log(`Status column indexes: ${JSON.stringify(statusIndexes)}`);
+
+        if (systemNameIndex === -1 || statusIndexes.length === 0) {
+          this.logger.error('Required columns not found in Inclusivity Spectrum Analysis sheet.');
+          this.logger.log('Available headers:', headersInc.map((h, i) => `${i}: "${h}"`));
+          return;
+        }
+
+        const statusIndex = statusIndexes[0];
+
+        let updatedCount = 0;
+        let processedCount = 0;
+        const unmatchedSystems = [];
+        const matchedSystems = [];
+
+        // Get all existing system names from database for comparison
+        const existingSystemNames = await this.generalDataModel.find({}, { systemName: 1, _id: 0 }).lean();
+        const dbSystemNames = existingSystemNames.map(doc => doc.systemName);
+
+        this.logger.log(`Found ${dbSystemNames.length} system names in database`);
+
+        for (let i = 0; i < dataRowsInc.length; i++) {
+          const row = dataRowsInc[i];
+
+          if (!row || row.every(cell => !cell || String(cell).trim() === '')) {
+            continue;
+          }
+
+          if (row.length <= Math.max(systemNameIndex, statusIndex)) {
+            continue;
+          }
+
+          // Clean the system name and status
+          let systemName = row[systemNameIndex] != null ? String(row[systemNameIndex]).trim().replace(/\s+/g, ' ') : '';
+          const statusValue = row[statusIndex] != null ? String(row[statusIndex]).trim().replace(/\s+/g, ' ') : '';
+
+          if (!systemName) {
+            continue;
+          }
+
+          processedCount++;
+
+          // Debug specific system names
+          if (systemName.includes('Virement') || systemName.includes('Somalia') || systemName.includes('SIPS')) {
+            this.logger.log(`🔍 DEBUGGING TARGET SYSTEM: "${systemName}"`);
+            this.logger.log(`🔍 Original raw value: "${row[systemNameIndex]}"`);
+            this.logger.log(`🔍 Status value: "${statusValue}"`);
+            this.logger.log(`🔍 Cleaned system name: "${systemName}"`);
+            this.logger.log(`🔍 System name length: ${systemName.length}`);
+            this.logger.log(`🔍 Character codes: ${systemName.split('').map(c => c.charCodeAt(0)).join(', ')}`);
+          }
+
+          // Try exact match first
+          const updateResult = await this.generalDataModel.updateOne(
+            { systemName: systemName },
+            { $set: { inclusivityRanking: statusValue || '' } },
+            { upsert: false }
+          );
+
+          if (updateResult.matchedCount > 0) {
+            updatedCount++;
+            matchedSystems.push(systemName);
+
+            if (systemName.includes('Virement') || systemName.includes('Somalia') || systemName.includes('SIPS')) {
+              this.logger.log(`✅ EXACT MATCH FOUND for: "${systemName}"`);
+            }
+          } else {
+            // Try fuzzy matching
+            let foundMatch = false;
+
+            for (const dbSystemName of dbSystemNames) {
+              if (fuzzyMatch(systemName, dbSystemName, 0.85)) {
+                this.logger.log(`🔄 FUZZY MATCH: "${systemName}" -> "${dbSystemName}"`);
+
+                const fuzzyUpdateResult = await this.generalDataModel.updateOne(
+                  { systemName: dbSystemName },
+                  { $set: { inclusivityRanking: statusValue || '' } },
+                  { upsert: false }
+                );
+
+                if (fuzzyUpdateResult.matchedCount > 0) {
+                  updatedCount++;
+                  matchedSystems.push(`${systemName} -> ${dbSystemName}`);
+                  foundMatch = true;
+                  break;
+                }
+              }
+            }
+
+            if (!foundMatch) {
+              unmatchedSystems.push({
+                original: systemName,
+                status: statusValue,
+                rowNumber: i + 6
+              });
+
+              // For debugging specific systems, show similar matches
+              if (systemName.includes('Virement') || systemName.includes('Somalia') || systemName.includes('SIPS')) {
+                this.logger.log(`❌ NO MATCH FOUND for: "${systemName}"`);
+
+                // Find similar system names in database
+                const similarNames = dbSystemNames.filter(dbName => {
+                  const similarity = 1 - (levenshteinDistance(cleanSystemName(systemName), cleanSystemName(dbName)) / Math.max(systemName.length, dbName.length));
+                  return similarity > 0.5;
+                }).slice(0, 5);
+
+                this.logger.log(`🔍 Similar names in DB: ${JSON.stringify(similarNames)}`);
               }
             }
           }
-          
-          if (!foundMatch) {
-            unmatchedSystems.push({
-              original: systemName,
-              status: statusValue,
-              rowNumber: i + 6
-            });
+        }
 
-            // For debugging specific systems, show similar matches
-            if (systemName.includes('Virement') || systemName.includes('Somalia') || systemName.includes('SIPS')) {
-              this.logger.log(`❌ NO MATCH FOUND for: "${systemName}"`);
-              
-              // Find similar system names in database
-              const similarNames = dbSystemNames.filter(dbName => {
-                const similarity = 1 - (levenshteinDistance(cleanSystemName(systemName), cleanSystemName(dbName)) / Math.max(systemName.length, dbName.length));
-                return similarity > 0.5;
-              }).slice(0, 5);
-              
-              this.logger.log(`🔍 Similar names in DB: ${JSON.stringify(similarNames)}`);
-            }
-          }
+        // Detailed reporting
+        this.logger.log(`\n📊 INCLUSIVITY SYNC RESULTS:`);
+        this.logger.log(`  Processed: ${processedCount}`);
+        this.logger.log(`  Updated: ${updatedCount}`);
+        this.logger.log(`  Unmatched: ${unmatchedSystems.length}`);
+
+        if (unmatchedSystems.length > 0) {
+          this.logger.log(`\n❌ UNMATCHED SYSTEMS:`);
+          unmatchedSystems.forEach(item => {
+            this.logger.log(`  Row ${item.rowNumber}: "${item.original}" (status: ${item.status})`);
+          });
+        }
+
+        // Log first few matched systems for verification
+        if (matchedSystems.length > 0) {
+          this.logger.log(`\n✅ MATCHED SYSTEMS (first 10):`);
+          matchedSystems.slice(0, 10).forEach(match => {
+            this.logger.log(`  ${match}`);
+          });
         }
       }
 
-      // Detailed reporting
-      this.logger.log(`\n📊 INCLUSIVITY SYNC RESULTS:`);
-      this.logger.log(`  Processed: ${processedCount}`);
-      this.logger.log(`  Updated: ${updatedCount}`);
-      this.logger.log(`  Unmatched: ${unmatchedSystems.length}`);
-
-      if (unmatchedSystems.length > 0) {
-        this.logger.log(`\n❌ UNMATCHED SYSTEMS:`);
-        unmatchedSystems.forEach(item => {
-          this.logger.log(`  Row ${item.rowNumber}: "${item.original}" (status: ${item.status})`);
-        });
+    } catch (error) {
+      this.logger.error('Error fetching data from Google Sheets:', error.message);
+      if (error.stack) {
+        this.logger.error('Stack trace:', error.stack);
       }
-
-      // Log first few matched systems for verification
-      if (matchedSystems.length > 0) {
-        this.logger.log(`\n✅ MATCHED SYSTEMS (first 10):`);
-        matchedSystems.slice(0, 10).forEach(match => {
-          this.logger.log(`  ${match}`);
-        });
-      }
-    }
-
-  } catch (error) {
-    this.logger.error('Error fetching data from Google Sheets:', error.message);
-    if (error.stack) {
-      this.logger.error('Stack trace:', error.stack);
     }
   }
-}
   // async fetchAndSyncGeneralData() {
   //   try {
   //     const credentials = JSON.parse(
