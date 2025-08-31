@@ -21,7 +21,14 @@ export class GeneralData {
 
     @Prop() interoperabilityArrangement: string;
     @Prop() ipsType: string;
+
+
+    //////IPS GOVERNANCE/////////
     @Prop() governanceTypology: string;
+    @Prop() schemeRulesPublic: string;
+    @Prop() nonBankingFIsSponsorship: string;
+
+
     @Prop() ownershipModel: string;
     @Prop() systemOwner: string;
     @Prop() overseer: string;
@@ -46,7 +53,7 @@ export class GeneralData {
     @Prop() otherProxyIdType: string;
     @Prop() businessModel: string;
     @Prop() pricingStructure: string;
-    @Prop() schemeRulesPublic: string;
+
     @Prop() additionalRecourseRequirements: string;
     @Prop() disputeResolutionMechanism: string;
     @Prop() startupFundingSource: string;
@@ -54,7 +61,6 @@ export class GeneralData {
     @Prop() mechanismForDecisionMaking: string;
     @Prop() abilityToBecomeDirectParticipants: string;
     @Prop() entitiesThatCannotParticipate: string;
-    @Prop() nonBankingFIsSponsorship: string;
     @Prop() minValueForTransactions: string;
     @Prop() corporateStructure: string;
     @Prop() otherCorporateStructure: string;
