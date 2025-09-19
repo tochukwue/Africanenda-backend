@@ -10,6 +10,8 @@ import { ValuedataModule } from './valuedata/valuedata.module';
 import { IpslistModule } from './ipslist/ipslist.module';
 import { GeneraldataModule } from './generaldata/generaldata.module';
 import { GoogleSheetModule } from './google-sheet/google-sheet.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { UserModule } from './user/user.module';
 
 
 
@@ -26,6 +28,8 @@ import { GoogleSheetModule } from './google-sheet/google-sheet.module';
     IpslistModule,
     GeneraldataModule,
     GoogleSheetModule,
+    AnalyticsModule,
+    UserModule,
   ],
   controllers: [AppController],
   providers: [AppService],
