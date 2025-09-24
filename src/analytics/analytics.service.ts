@@ -123,6 +123,83 @@ export class AnalyticsService {
     return { totals: currentTotals, percentageChange };
   }
 
+  async getStatsRange(range: string) {
+    const now = new Date();
+    let startDate: Date;
+    let endDate: Date = new Date();
+
+    switch (range) {
+      case '7days':
+        startDate = new Date();
+        startDate.setDate(now.getDate() - 6); // last 7 days including today
+        break;
+
+      case 'thisMonth':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        break;
+
+      case 'lastMonth':
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0); // last day of last month
+        break;
+
+      case 'thisYear':
+        startDate = new Date(now.getFullYear(), 0, 1);
+        break;
+
+      case 'last2Years':
+        startDate = new Date(now.getFullYear() - 2, 0, 1);
+        break;
+
+      case 'last6Months':
+        startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+        break;
+
+      default:
+        throw new Error(
+          'Invalid range. Allowed values: 7days, thisMonth, lastMonth, thisYear, last2Years, last6Months',
+        );
+    }
+
+    // Previous period (same length as date range)
+    const rangeDays = Math.ceil(
+      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    const prevStart = new Date(startDate);
+    prevStart.setDate(startDate.getDate() - rangeDays);
+    const prevEnd = new Date(startDate);
+    prevEnd.setDate(startDate.getDate() - 1);
+
+    // Fetch docs
+    const currentDocs = await this.analyticsModel.find({
+      date: {
+        $gte: startDate.toISOString().split('T')[0],
+        $lte: endDate.toISOString().split('T')[0],
+      },
+    });
+
+    const prevDocs = await this.analyticsModel.find({
+      date: {
+        $gte: prevStart.toISOString().split('T')[0],
+        $lte: prevEnd.toISOString().split('T')[0],
+      },
+    });
+
+    const currentTotals = this.sumMetrics(currentDocs);
+    const prevTotals = this.sumMetrics(prevDocs);
+
+    const percentageChange = Object.keys(currentTotals).reduce((acc, key) => {
+      acc[key] = this.calculatePercentageChange(
+        prevTotals[key],
+        currentTotals[key],
+      );
+      return acc;
+    }, {} as Record<string, string>);
+
+    return { range, startDate, endDate, totals: currentTotals, percentageChange };
+  }
+
+
 
   // ✅ log indicator call
   async logIndicatorCall(indicatorName: string) {
@@ -159,4 +236,62 @@ export class AnalyticsService {
       { $sort: { totalCount: -1 } }, // highest to lowest
     ]);
   }
+
+  async getIndicatorStatsRange(range: string) {
+    const now = new Date();
+    let startDate: Date;
+    let endDate: Date = new Date();
+
+    switch (range) {
+      case '7days':
+        startDate = new Date();
+        startDate.setDate(now.getDate() - 6);
+        break;
+
+      case 'thisMonth':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        break;
+
+      case 'lastMonth':
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+        break;
+
+      case 'thisYear':
+        startDate = new Date(now.getFullYear(), 0, 1);
+        break;
+
+      case 'last2Years':
+        startDate = new Date(now.getFullYear() - 2, 0, 1);
+        break;
+
+      case 'last6Months':
+        startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+        break;
+
+      default:
+        throw new Error(
+          'Invalid range. Allowed values: 7days, thisMonth, lastMonth, thisYear, last2Years, last6Months',
+        );
+    }
+
+    return this.indicatorModel.aggregate([
+      {
+        $match: {
+          date: {
+            $gte: startDate.toISOString().slice(0, 10),
+            $lte: endDate.toISOString().slice(0, 10),
+          },
+        },
+      },
+      {
+        $group: {
+          _id: '$indicatorName',
+          totalCount: { $sum: '$count' },
+        },
+      },
+      { $sort: { totalCount: -1 } },
+    ]);
+  }
+
 }
