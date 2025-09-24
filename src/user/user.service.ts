@@ -148,4 +148,10 @@ export class UserService {
 
     return { message: 'Password updated successfully' };
   }
+
+  async getAdminById(id: string) {
+  const admin = await this.userModel.findOne({ _id: id, role: 'admin' }).lean();
+  if (!admin) throw new NotFoundException('Admin not found');
+  return admin;
+}
 }

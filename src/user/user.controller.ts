@@ -1,20 +1,20 @@
-import { 
-  Controller, Post, Body, Get, Query, Param, Put, Delete 
+import {
+  Controller, Post, Body, Get, Query, Param, Put, Delete
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { UserService } from './user.service';
-import { 
-  CreateAdminDto, 
-  LoginDto, 
-  RequestResetDto, 
-  UpdatePasswordDto, 
-  UpdateUserDto, 
-  VerifyResetDto 
+import {
+  CreateAdminDto,
+  LoginDto,
+  RequestResetDto,
+  UpdatePasswordDto,
+  UpdateUserDto,
+  VerifyResetDto
 } from './dto/user.dto';
 
 @Controller('admin')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) { }
 
   // 🔹 Create new admin
   @Post('create')
@@ -68,17 +68,24 @@ export class UserController {
   }
 
   // 🔹 Get all admins with pagination
-@Get()
-@ApiTags('Admin Management')
-@ApiBearerAuth()
-@ApiOperation({ summary: 'Get all admins (paginated)' })
-@ApiResponse({ status: 200, description: 'Admins fetched successfully' })
-@ApiQuery({ name: 'page', required: false, type: Number, example: 1, description: 'Page number (default: 1)' })
-@ApiQuery({ name: 'limit', required: false, type: Number, example: 10, description: 'Number of records per page (default: 10)' })
-getAllAdmins(@Query('page') page = 1, @Query('limit') limit = 10) {
-  return this.userService.getAllAdmins(Number(page), Number(limit));
-}
+  @Get()
+  @ApiTags('Admin Management')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all admins (paginated)' })
+  @ApiResponse({ status: 200, description: 'Admins fetched successfully' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10, description: 'Number of records per page (default: 10)' })
+  getAllAdmins(@Query('page') page = 1, @Query('limit') limit = 10) {
+    return this.userService.getAllAdmins(Number(page), Number(limit));
+  }
 
+  @Get('admin/:id')
+  @ApiTags('Admin Management')
+  @ApiOperation({ summary: 'Get an admin by ID' })
+  @ApiResponse({ status: 200, description: 'Admin fetched successfully' })
+  async getAdmin(@Param('id') id: string) {
+    return this.userService.getAdminById(id);
+  }
   // 🔹 Delete admin
   @Delete(':id')
   @ApiTags('Admin Management')
