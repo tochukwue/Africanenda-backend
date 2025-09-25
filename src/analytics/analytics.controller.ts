@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Query } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
 import { LogEventDto, LogIndicatorDto } from './dto/analytics.dto';
@@ -187,4 +187,44 @@ export class AnalyticsController {
   async getIndicatorStatsRange(@Query('range') range: string) {
     return this.analyticsService.getIndicatorStatsRange(range);
   }
+
+
+
+
+
+  @Post('link/upsert')
+  @ApiOperation({ summary: 'Create or update a dataset link' })
+  @ApiResponse({
+    status: 201,
+    description: 'Dataset link created/updated successfully',
+    schema: {
+      example: {
+        name: 'gdp_dataset',
+        link: 'https://docs.google.com/spreadsheets/d/xxxx',
+      },
+    },
+  })
+  async upsertDataset(
+    @Body('name') name: string,
+    @Body('link') link: string,
+  ) {
+    return this.analyticsService.upsertDataset(name, link);
+  }
+
+  @Get('link/data/:name')
+  @ApiOperation({ summary: 'Get dataset link by name' })
+  @ApiResponse({
+    status: 200,
+    description: 'Dataset fetched successfully',
+    schema: {
+      example: {
+        name: 'population_data',
+        link: 'https://drive.google.com/sheet/yyy',
+      },
+    },
+  })
+  async getDataset(@Param('name') name: string) {
+    return this.analyticsService.getDataset(name);
+  }
+
 }

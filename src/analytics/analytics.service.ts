@@ -1,14 +1,16 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Analytics, AnalyticsDocument } from './schemas/analytics.schema';
 import { IndicatorTracking, IndicatorTrackingDocument } from './schemas/indicator-tracking.schema';
+import { Dataset, DatasetDocument } from './schemas/dataset.schema';
 
 @Injectable()
 export class AnalyticsService {
   constructor(
     @InjectModel(Analytics.name) private analyticsModel: Model<AnalyticsDocument>,
     @InjectModel(IndicatorTracking.name) private readonly indicatorModel: Model<IndicatorTrackingDocument>,
+     @InjectModel(Dataset.name) private datasetModel: Model<DatasetDocument>,
   ) { }
 
   // allowed events (use exact keys from schema)
@@ -294,4 +296,27 @@ export class AnalyticsService {
     ]);
   }
 
+
+  // ✅ Create or Update dataset by name
+  async upsertDataset(name: string, link: string): Promise<Dataset> {
+    if (!name || !link) throw new BadRequestException('Name and link are required');
+
+    return this.datasetModel.findOneAndUpdate(
+      { name },
+      { name, link },
+      { new: true, upsert: true }, // create if not exists
+    );
+  }
+
+  // ✅ Get dataset by name
+  async getDataset(name: string): Promise<Dataset> {
+    const dataset = await this.datasetModel.findOne({ name });
+    if (!dataset) throw new NotFoundException('Dataset not found');
+    return dataset;
+  }
+
+  // ✅ Get all datasets
+  async getAllDatasets(): Promise<Dataset[]> {
+    return this.datasetModel.find().lean();
+  }
 }
