@@ -41,6 +41,14 @@ export class UserService {
       password: hashed,
     });
 
+        await sendEmail(
+      `<p>Hello,
+
+Welcome to Africanenda Admin platform. Click on the link below to activate your account.</p>`,
+      'Welcome to Africanenda Admin',
+      [email],
+    );
+
     return admin.save();
   }
 
