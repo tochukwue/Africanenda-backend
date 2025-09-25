@@ -31,6 +31,21 @@ export class LogIndicatorDto {
   })
   indicatorName: string;
 }
+
+export class UpsertDatasetDto {
+  @ApiProperty({
+    description: 'Unique name for the dataset',
+    example: 'gdp_dataset',
+  })
+  name: string;
+
+  @ApiProperty({
+    description: 'Link to the dataset (Google Sheet, S3, etc.)',
+    example: 'https://docs.google.com/spreadsheets/d/xxxx',
+  })
+  link: string;
+}
+
 export class CreateAnalyticsDto {
   // If you want, you can define additional fields for future extension
 }

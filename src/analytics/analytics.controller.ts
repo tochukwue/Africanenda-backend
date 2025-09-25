@@ -1,7 +1,7 @@
 import { Controller, Post, Body, Get, Query, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
-import { LogEventDto, LogIndicatorDto } from './dto/analytics.dto';
+import { LogEventDto, LogIndicatorDto, UpsertDatasetDto } from './dto/analytics.dto';
 
 @ApiTags('Analytics')
 @Controller('analytics')
@@ -192,7 +192,7 @@ export class AnalyticsController {
 
 
 
-  @Post('link/upsert')
+@Post('link/upsert')
   @ApiOperation({ summary: 'Create or update a dataset link' })
   @ApiResponse({
     status: 201,
@@ -204,11 +204,8 @@ export class AnalyticsController {
       },
     },
   })
-  async upsertDataset(
-    @Body('name') name: string,
-    @Body('link') link: string,
-  ) {
-    return this.analyticsService.upsertDataset(name, link);
+  async upsertDataset(@Body() dto: UpsertDatasetDto) {
+    return this.analyticsService.upsertDataset(dto.name, dto.link);
   }
 
   @Get('link/data/:name')
@@ -225,6 +222,22 @@ export class AnalyticsController {
   })
   async getDataset(@Param('name') name: string) {
     return this.analyticsService.getDataset(name);
+  }
+
+  @Get('link/all')
+  @ApiOperation({ summary: 'Get all dataset links' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of all datasets',
+    schema: {
+      example: [
+        { name: 'gdp_dataset', link: 'https://sheet1' },
+        { name: 'population_data', link: 'https://sheet2' },
+      ],
+    },
+  })
+  async getAllDatasets() {
+    return this.analyticsService.getAllDatasets();
   }
 
 }
