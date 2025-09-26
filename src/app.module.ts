@@ -22,7 +22,7 @@ import { UserModule } from './user/user.module';
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot({ ttl: 60, limit: 40 }),
     // MongooseModule.forRoot(String(process.env.MONGODB_URL).trim()),
-    // MongooseModule.forRoot("mongodb+srv://monumentaleworks:Z5fFLVBTsFA7bQPm@adficluster.nqi19.mongodb.net/africanenda?retryWrites=true&w=majority&appName=ADFICluster"),
+    MongooseModule.forRoot("mongodb+srv://monumentaleworks:Z5fFLVBTsFA7bQPm@adficluster.nqi19.mongodb.net/africanenda?retryWrites=true&w=majority&appName=ADFICluster"),
     VolumedataModule,
     ValuedataModule,
     IpslistModule,
