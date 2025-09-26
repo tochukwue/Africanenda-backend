@@ -954,6 +954,360 @@ export class IpslistService {
     };
   }
 
+
+
+
+  private splitCountries(geoCountries?: string) {
+    if (!geoCountries) return [];
+    return geoCountries.split(',').map((c) => c.trim()).filter(Boolean);
+  }
+
+  private africanCountries = [
+    'Algeria', 'Angola', 'Benin', 'Botswana', 'Burkina Faso', 'Burundi',
+    'Cabo Verde', 'Cameroon', 'Central African Republic', 'Chad', 'Comoros',
+    'Congo', 'Congo, The Democratic Republic of the', 'Côte d\'Ivoire', 'Djibouti',
+    'Egypt', 'Equatorial Guinea', 'Eritrea', 'Eswatini', 'Ethiopia', 'Gabon',
+    'Gambia', 'Ghana', 'Guinea', 'Guinea-Bissau', 'Kenya', 'Lesotho', 'Liberia',
+    'Libya', 'Madagascar', 'Malawi', 'Mali', 'Mauritania', 'Mauritius', 'Morocco',
+    'Mozambique', 'Namibia', 'Niger', 'Nigeria', 'Rwanda', 'Sao Tome and Principe',
+    'Senegal', 'Seychelles', 'Sierra Leone', 'Somalia', 'South Africa', 'South Sudan',
+    'Sudan', 'Tanzania, United Republic of', 'Togo', 'Tunisia', 'Uganda', 'Zambia', 'Zimbabwe'
+  ];
+
+  private africanCountriesFuse = new (Fuse as any)(this.africanCountries, {
+    includeScore: true,
+    threshold: 0.3
+  });
+
+  private getCountryCode(countryName?: string) {
+    if (!countryName) return null;
+
+    const cleanedName = countryName.trim();
+
+    // Manual mapping for African countries (most reliable approach)
+    const countryCodeMap: { [key: string]: string } = {
+      'Algeria': 'DZ',
+      'Angola': 'AO',
+      'Benin': 'BJ',
+      'Botswana': 'BW',
+      'Burkina Faso': 'BF',
+      "Burkina Faso ": 'BF',
+      'Burundi': 'BI',
+      'Cabo Verde': 'CV',
+      'Cape Verde': 'CV',
+      'Cameroon': 'CM',
+      'Central African Republic': 'CF',
+      'Chad': 'TD',
+      'Comoros': 'KM',
+      'Congo': 'CG',
+      'Democratic Republic of the Congo': 'CD',
+      "Dem. Rep. ": 'CD',
+      "Dem Rep.": 'CD',
+      "Dem. Rep.": 'CD',
+      "Republic of the Congo": 'CG',
+      "Congo, Dem. Rep. ": 'CD',
+      "Congo, Dem. Rep.": 'CD',
+      'Congo, The Democratic Republic of the': 'CD',
+      'Côte d\'Ivoire': 'CI',
+      "Cote d'Ivoire": 'CI',
+      'Ivory Coast': 'CI',
+      'Djibouti': 'DJ',
+      'Egypt': 'EG',
+      'Equatorial Guinea': 'GQ',
+      'Eritrea': 'ER',
+      'Eswatini': 'SZ',
+      'Swaziland': 'SZ',
+      'Ethiopia': 'ET',
+      'Gabon': 'GA',
+      'Gambia': 'GM',
+      "the Gambia": 'GM',
+      'Ghana': 'GH',
+      'Guinea': 'GN',
+      'Guinea-Bissau': 'GW',
+      'Kenya': 'KE',
+      'Lesotho': 'LS',
+      'Liberia': 'LR',
+      'Libya': 'LY',
+      'Madagascar': 'MG',
+      'Malawi': 'MW',
+      'Mali': 'ML',
+      'Mauritania': 'MR',
+      'Mauritius': 'MU',
+      'Morocco': 'MA',
+      'Mozambique': 'MZ',
+      'Namibia': 'NA',
+      'Niger': 'NE',
+      'Nigeria': 'NG',
+      'Rwanda': 'RW',
+      'Sao Tome and Principe': 'ST',
+      'São Tomé and Príncipe': 'ST',
+      'Senegal': 'SN',
+      'Seychelles': 'SC',
+      'Sierra Leone': 'SL',
+      'Somalia': 'SO',
+      "Somiland": 'SO',
+      'South Africa': 'ZA',
+      'South Sudan': 'SS',
+      'Sudan': 'SD',
+      'Tanzania': 'TZ',
+      'Tanzania, United Republic of': 'TZ',
+      'Togo': 'TG',
+      'Tunisia': 'TN',
+      'Uganda': 'UG',
+      'Zambia': 'ZM',
+      'Zimbabwe': 'ZW'
+    };
+
+    // Direct mapping lookup
+    if (countryCodeMap[cleanedName]) {
+      return countryCodeMap[cleanedName];
+    }
+
+    // Try fuzzy matching if direct lookup fails
+    const fuzzyResult = this.africanCountriesFuse.search(cleanedName);
+    if (fuzzyResult.length > 0 && fuzzyResult[0].score <= 0.3) {
+      const matchedCountry = fuzzyResult[0].item;
+      if (countryCodeMap[matchedCountry]) {
+        return countryCodeMap[matchedCountry];
+      }
+    }
+
+    // Fallback to library lookup
+    try {
+      const lookup = countryCodeLookup.byCountry(cleanedName);
+      if (lookup?.iso2) return lookup.iso2;
+    } catch { }
+
+    return null;
+  }
+
+  async findAll(): Promise<IpsActivity[]> {
+    const results = await this.ipsActivityModel
+      .find()
+      .collation({ locale: 'en', strength: 2 }) // Case-insensitive sort
+      // .sort({ ipsName: 1 })
+      .sort({ geography: 1 })
+
+      .exec();
+
+    // ✅ Trim ipsName for each document
+    return results.map((doc) => {
+      if (doc.ipsName) {
+        doc.ipsName = doc.ipsName.trim();
+      }
+      return doc;
+    });
+  }
+
+  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
+  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
+  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
+  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
+  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
+  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
+  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
+  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
+  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
+  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
+  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
+  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
+  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
+  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
+  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
+  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
+  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
+  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
+  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
+  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
+
+  async manualSyncIpsActivity() {
+    return this.fetchAndSyncIpsActivity();
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async fetchAndSyncIpsActivity() {
+    try {
+      const credentials = JSON.parse(
+        fs.readFileSync(
+          path.resolve(__dirname, '../../../config/authentication-411609-dcd87bcd1c0b.json'),
+          'utf8',
+        ),
+      );
+
+      const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+      });
+
+      const sheets = google.sheets({ version: 'v4', auth });
+      const spreadsheetId = '1VBLgF2JRCHh4RKPHhTB66yCD-Zc5Ru0wCxX3ZEDtTR0';
+      const range = 'Live IPS List!B1:ZZ';
+
+      // Helper function to clean whitespace from values
+      const cleanValue = (value: any): string => {
+        if (value == null || value === '') {
+          return '';
+        }
+        // Convert to string, trim whitespace, and replace multiple spaces with single space
+        return String(value).trim().replace(/\s+/g, ' ');
+      };
+
+      // Helper function to clean entire object
+      const cleanObject = (obj: any): any => {
+        const cleaned: any = {};
+        Object.keys(obj).forEach(key => {
+          cleaned[key] = cleanValue(obj[key]);
+        });
+        return cleaned;
+      };
+
+      const res = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range,
+        valueRenderOption: 'UNFORMATTED_VALUE', // Get raw values to avoid truncation
+        dateTimeRenderOption: 'FORMATTED_STRING'
+      });
+      const rawRows = res.data.values || [];
+
+      if (!rawRows.length) {
+        this.logger.warn('No IPS Activity data found.');
+        return;
+      }
+
+      // Clean all cell values in the rows
+      const rows = rawRows.map(row =>
+        row.map(cell => cleanValue(cell))
+      );
+
+      this.logger.log(`Fetched ${rows.length} rows from IPS Activity sheet`);
+
+      // Define structure for categories
+      const categoriesConfig = [
+        {
+          category: 'LIVE: DOMESTIC IPS',
+          headers: ['ipsName', 'geography', 'region', 'ipsType'],
+          start: 2,
+          end: 34,
+        },
+        {
+          category: 'DOMESTIC: IN DEVELOPMENT',
+          headers: ['geography', 'status'],
+          start: 38,
+          end: 56,
+        },
+        {
+          category: 'Countries with no domestic IPS activity',
+          headers: ['geography'],
+          start: 58,
+          end: 67,
+        },
+        {
+          category: 'LIVE: REGIONAL IPS',
+          headers: ['ipsName', 'geographyCountries', 'region', 'ipsType'],
+          start: 69,
+          end: 72,
+        },
+        {
+          category: 'REGIONAL: IN DEVELOPMENT',
+          headers: ['ipsName', 'geographyCountries', 'region'],
+          start: 74,
+          end: 77,
+        },
+        {
+          category: 'IN PILOT PHASE',
+          headers: ['ipsName', 'geographyCountries', 'region'],
+          start: 79,
+          end: 80,
+        },
+        {
+          category: 'Countries with no regional IPS activity',
+          headers: ['geography'],
+          start: 82,
+          end: 85,
+        },
+      ];
+
+      const ops = [];
+      let totalProcessed = 0;
+      let skippedEmpty = 0;
+
+      for (const config of categoriesConfig) {
+        this.logger.log(`Processing category: ${config.category} (rows ${config.start}-${config.end})`);
+
+        for (let i = config.start; i <= config.end; i++) {
+          const row = rows[i] || [];
+
+          // Check if row is completely empty after cleaning
+          if (row.every(cell => !cell || cell === '')) {
+            skippedEmpty++;
+            continue;
+          }
+
+          const doc: any = { category: cleanValue(config.category) };
+
+          // Map headers to row data with cleaning
+          config.headers.forEach((header, idx) => {
+            const cellValue = cleanValue(row[idx] || '');
+            doc[header] = cellValue;
+
+            // Log long values with commas for debugging (similar to main sync)
+            if (cellValue.includes(',') && cellValue.length > 30) {
+              this.logger.log(`Long comma-separated value in ${config.category}, ${header}: "${cellValue}"`);
+            }
+          });
+
+          // Clean the entire document object
+          const cleanedDoc = cleanObject(doc);
+
+          // Build a dynamic unique filter with cleaned values
+          const filter: any = { category: cleanedDoc.category };
+
+          if (cleanedDoc.ipsName) filter.ipsName = cleanedDoc.ipsName;
+          if (cleanedDoc.geography) filter.geography = cleanedDoc.geography;
+          if (cleanedDoc.geographyCountries) filter.geographyCountries = cleanedDoc.geographyCountries;
+
+          // Clean the filter as well
+          const cleanedFilter = cleanObject(filter);
+
+          // Log sample data for debugging (first few records per category)
+          if (totalProcessed < 5 || (totalProcessed % 20 === 0)) {
+            this.logger.log(`Sample record ${totalProcessed + 1}:`, JSON.stringify(cleanedDoc, null, 2));
+          }
+
+          ops.push({
+            updateOne: {
+              filter: cleanedFilter,
+              update: { $set: cleanedDoc },
+              upsert: true,
+            },
+          });
+
+          totalProcessed++;
+        }
+      }
+
+      this.logger.log(`Processed ${totalProcessed} records, skipped ${skippedEmpty} empty rows`);
+
+      if (ops.length) {
+        const bulkRes = await this.ipsActivityModel.bulkWrite(ops);
+        this.logger.log(`IPS Activity data synced successfully:`);
+        this.logger.log(`  - Matched: ${bulkRes.matchedCount}`);
+        this.logger.log(`  - Modified: ${bulkRes.modifiedCount}`);
+        this.logger.log(`  - Upserted: ${bulkRes.upsertedCount}`);
+        this.logger.log(`  - Total operations: ${ops.length}`);
+      } else {
+        this.logger.log('No valid IPS Activity rows to upsert.');
+      }
+    } catch (error) {
+      this.logger.error('Error fetching IPS Activity from Google Sheets:', error.message);
+      if (error.stack) {
+        this.logger.error('Stack trace:', error.stack);
+      }
+    }
+  }
+
+}
+
   // inclusivityRanking
   // async getByCategoriesEnriched(
   //   categories: string[],
@@ -1895,358 +2249,7 @@ export class IpslistService {
 
 
 
-
-
-  private splitCountries(geoCountries?: string) {
-    if (!geoCountries) return [];
-    return geoCountries.split(',').map((c) => c.trim()).filter(Boolean);
-  }
-
-  private africanCountries = [
-    'Algeria', 'Angola', 'Benin', 'Botswana', 'Burkina Faso', 'Burundi',
-    'Cabo Verde', 'Cameroon', 'Central African Republic', 'Chad', 'Comoros',
-    'Congo', 'Congo, The Democratic Republic of the', 'Côte d\'Ivoire', 'Djibouti',
-    'Egypt', 'Equatorial Guinea', 'Eritrea', 'Eswatini', 'Ethiopia', 'Gabon',
-    'Gambia', 'Ghana', 'Guinea', 'Guinea-Bissau', 'Kenya', 'Lesotho', 'Liberia',
-    'Libya', 'Madagascar', 'Malawi', 'Mali', 'Mauritania', 'Mauritius', 'Morocco',
-    'Mozambique', 'Namibia', 'Niger', 'Nigeria', 'Rwanda', 'Sao Tome and Principe',
-    'Senegal', 'Seychelles', 'Sierra Leone', 'Somalia', 'South Africa', 'South Sudan',
-    'Sudan', 'Tanzania, United Republic of', 'Togo', 'Tunisia', 'Uganda', 'Zambia', 'Zimbabwe'
-  ];
-
-  private africanCountriesFuse = new (Fuse as any)(this.africanCountries, {
-    includeScore: true,
-    threshold: 0.3
-  });
-
-  private getCountryCode(countryName?: string) {
-    if (!countryName) return null;
-
-    const cleanedName = countryName.trim();
-
-    // Manual mapping for African countries (most reliable approach)
-    const countryCodeMap: { [key: string]: string } = {
-      'Algeria': 'DZ',
-      'Angola': 'AO',
-      'Benin': 'BJ',
-      'Botswana': 'BW',
-      'Burkina Faso': 'BF',
-      "Burkina Faso ": 'BF',
-      'Burundi': 'BI',
-      'Cabo Verde': 'CV',
-      'Cape Verde': 'CV',
-      'Cameroon': 'CM',
-      'Central African Republic': 'CF',
-      'Chad': 'TD',
-      'Comoros': 'KM',
-      'Congo': 'CG',
-      'Democratic Republic of the Congo': 'CD',
-      "Dem. Rep. ": 'CD',
-      "Dem Rep.": 'CD',
-      "Dem. Rep.": 'CD',
-      "Republic of the Congo": 'CG',
-      "Congo, Dem. Rep. ": 'CD',
-      "Congo, Dem. Rep.": 'CD',
-      'Congo, The Democratic Republic of the': 'CD',
-      'Côte d\'Ivoire': 'CI',
-      "Cote d'Ivoire": 'CI',
-      'Ivory Coast': 'CI',
-      'Djibouti': 'DJ',
-      'Egypt': 'EG',
-      'Equatorial Guinea': 'GQ',
-      'Eritrea': 'ER',
-      'Eswatini': 'SZ',
-      'Swaziland': 'SZ',
-      'Ethiopia': 'ET',
-      'Gabon': 'GA',
-      'Gambia': 'GM',
-      "the Gambia": 'GM',
-      'Ghana': 'GH',
-      'Guinea': 'GN',
-      'Guinea-Bissau': 'GW',
-      'Kenya': 'KE',
-      'Lesotho': 'LS',
-      'Liberia': 'LR',
-      'Libya': 'LY',
-      'Madagascar': 'MG',
-      'Malawi': 'MW',
-      'Mali': 'ML',
-      'Mauritania': 'MR',
-      'Mauritius': 'MU',
-      'Morocco': 'MA',
-      'Mozambique': 'MZ',
-      'Namibia': 'NA',
-      'Niger': 'NE',
-      'Nigeria': 'NG',
-      'Rwanda': 'RW',
-      'Sao Tome and Principe': 'ST',
-      'São Tomé and Príncipe': 'ST',
-      'Senegal': 'SN',
-      'Seychelles': 'SC',
-      'Sierra Leone': 'SL',
-      'Somalia': 'SO',
-      "Somiland": 'SO',
-      'South Africa': 'ZA',
-      'South Sudan': 'SS',
-      'Sudan': 'SD',
-      'Tanzania': 'TZ',
-      'Tanzania, United Republic of': 'TZ',
-      'Togo': 'TG',
-      'Tunisia': 'TN',
-      'Uganda': 'UG',
-      'Zambia': 'ZM',
-      'Zimbabwe': 'ZW'
-    };
-
-    // Direct mapping lookup
-    if (countryCodeMap[cleanedName]) {
-      return countryCodeMap[cleanedName];
-    }
-
-    // Try fuzzy matching if direct lookup fails
-    const fuzzyResult = this.africanCountriesFuse.search(cleanedName);
-    if (fuzzyResult.length > 0 && fuzzyResult[0].score <= 0.3) {
-      const matchedCountry = fuzzyResult[0].item;
-      if (countryCodeMap[matchedCountry]) {
-        return countryCodeMap[matchedCountry];
-      }
-    }
-
-    // Fallback to library lookup
-    try {
-      const lookup = countryCodeLookup.byCountry(cleanedName);
-      if (lookup?.iso2) return lookup.iso2;
-    } catch { }
-
-    return null;
-  }
-
-  async findAll(): Promise<IpsActivity[]> {
-    const results = await this.ipsActivityModel
-      .find()
-      .collation({ locale: 'en', strength: 2 }) // Case-insensitive sort
-      // .sort({ ipsName: 1 })
-      .sort({ geography: 1 })
-
-      .exec();
-
-    // ✅ Trim ipsName for each document
-    return results.map((doc) => {
-      if (doc.ipsName) {
-        doc.ipsName = doc.ipsName.trim();
-      }
-      return doc;
-    });
-  }
-
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-
-  async manualSyncIpsActivity() {
-    return this.fetchAndSyncIpsActivity();
-  }
-
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
-  async fetchAndSyncIpsActivity() {
-    try {
-      const credentials = JSON.parse(
-        fs.readFileSync(
-          path.resolve(__dirname, '../../../config/authentication-411609-dcd87bcd1c0b.json'),
-          'utf8',
-        ),
-      );
-
-      const auth = new google.auth.GoogleAuth({
-        credentials,
-        scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-      });
-
-      const sheets = google.sheets({ version: 'v4', auth });
-      const spreadsheetId = '1VBLgF2JRCHh4RKPHhTB66yCD-Zc5Ru0wCxX3ZEDtTR0';
-      const range = 'Live IPS List!B1:ZZ';
-
-      // Helper function to clean whitespace from values
-      const cleanValue = (value: any): string => {
-        if (value == null || value === '') {
-          return '';
-        }
-        // Convert to string, trim whitespace, and replace multiple spaces with single space
-        return String(value).trim().replace(/\s+/g, ' ');
-      };
-
-      // Helper function to clean entire object
-      const cleanObject = (obj: any): any => {
-        const cleaned: any = {};
-        Object.keys(obj).forEach(key => {
-          cleaned[key] = cleanValue(obj[key]);
-        });
-        return cleaned;
-      };
-
-      const res = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range,
-        valueRenderOption: 'UNFORMATTED_VALUE', // Get raw values to avoid truncation
-        dateTimeRenderOption: 'FORMATTED_STRING'
-      });
-      const rawRows = res.data.values || [];
-
-      if (!rawRows.length) {
-        this.logger.warn('No IPS Activity data found.');
-        return;
-      }
-
-      // Clean all cell values in the rows
-      const rows = rawRows.map(row =>
-        row.map(cell => cleanValue(cell))
-      );
-
-      this.logger.log(`Fetched ${rows.length} rows from IPS Activity sheet`);
-
-      // Define structure for categories
-      const categoriesConfig = [
-        {
-          category: 'LIVE: DOMESTIC IPS',
-          headers: ['ipsName', 'geography', 'region', 'ipsType'],
-          start: 2,
-          end: 34,
-        },
-        {
-          category: 'DOMESTIC: IN DEVELOPMENT',
-          headers: ['geography', 'status'],
-          start: 38,
-          end: 56,
-        },
-        {
-          category: 'Countries with no domestic IPS activity',
-          headers: ['geography'],
-          start: 58,
-          end: 67,
-        },
-        {
-          category: 'LIVE: REGIONAL IPS',
-          headers: ['ipsName', 'geographyCountries', 'region', 'ipsType'],
-          start: 69,
-          end: 72,
-        },
-        {
-          category: 'REGIONAL: IN DEVELOPMENT',
-          headers: ['ipsName', 'geographyCountries', 'region'],
-          start: 74,
-          end: 77,
-        },
-        {
-          category: 'IN PILOT PHASE',
-          headers: ['ipsName', 'geographyCountries', 'region'],
-          start: 79,
-          end: 80,
-        },
-        {
-          category: 'Countries with no regional IPS activity',
-          headers: ['geography'],
-          start: 82,
-          end: 85,
-        },
-      ];
-
-      const ops = [];
-      let totalProcessed = 0;
-      let skippedEmpty = 0;
-
-      for (const config of categoriesConfig) {
-        this.logger.log(`Processing category: ${config.category} (rows ${config.start}-${config.end})`);
-
-        for (let i = config.start; i <= config.end; i++) {
-          const row = rows[i] || [];
-
-          // Check if row is completely empty after cleaning
-          if (row.every(cell => !cell || cell === '')) {
-            skippedEmpty++;
-            continue;
-          }
-
-          const doc: any = { category: cleanValue(config.category) };
-
-          // Map headers to row data with cleaning
-          config.headers.forEach((header, idx) => {
-            const cellValue = cleanValue(row[idx] || '');
-            doc[header] = cellValue;
-
-            // Log long values with commas for debugging (similar to main sync)
-            if (cellValue.includes(',') && cellValue.length > 30) {
-              this.logger.log(`Long comma-separated value in ${config.category}, ${header}: "${cellValue}"`);
-            }
-          });
-
-          // Clean the entire document object
-          const cleanedDoc = cleanObject(doc);
-
-          // Build a dynamic unique filter with cleaned values
-          const filter: any = { category: cleanedDoc.category };
-
-          if (cleanedDoc.ipsName) filter.ipsName = cleanedDoc.ipsName;
-          if (cleanedDoc.geography) filter.geography = cleanedDoc.geography;
-          if (cleanedDoc.geographyCountries) filter.geographyCountries = cleanedDoc.geographyCountries;
-
-          // Clean the filter as well
-          const cleanedFilter = cleanObject(filter);
-
-          // Log sample data for debugging (first few records per category)
-          if (totalProcessed < 5 || (totalProcessed % 20 === 0)) {
-            this.logger.log(`Sample record ${totalProcessed + 1}:`, JSON.stringify(cleanedDoc, null, 2));
-          }
-
-          ops.push({
-            updateOne: {
-              filter: cleanedFilter,
-              update: { $set: cleanedDoc },
-              upsert: true,
-            },
-          });
-
-          totalProcessed++;
-        }
-      }
-
-      this.logger.log(`Processed ${totalProcessed} records, skipped ${skippedEmpty} empty rows`);
-
-      if (ops.length) {
-        const bulkRes = await this.ipsActivityModel.bulkWrite(ops);
-        this.logger.log(`IPS Activity data synced successfully:`);
-        this.logger.log(`  - Matched: ${bulkRes.matchedCount}`);
-        this.logger.log(`  - Modified: ${bulkRes.modifiedCount}`);
-        this.logger.log(`  - Upserted: ${bulkRes.upsertedCount}`);
-        this.logger.log(`  - Total operations: ${ops.length}`);
-      } else {
-        this.logger.log('No valid IPS Activity rows to upsert.');
-      }
-    } catch (error) {
-      this.logger.error('Error fetching IPS Activity from Google Sheets:', error.message);
-      if (error.stack) {
-        this.logger.error('Stack trace:', error.stack);
-      }
-    }
-  }
-
-
+  
   // async getByCategoriesEnriched(
   //   categories: string[],
   //   filters?: any,
@@ -2725,4 +2728,3 @@ export class IpslistService {
   //   if (doc.ipsName) return { ipsName: doc.ipsName };
   //   return {};
   // }
-}
