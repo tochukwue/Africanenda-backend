@@ -4,6 +4,7 @@
 /build
 
 /.env
+/config/authentication-411609-dcd87bcd1c0b.json
 
 # Logs
 logs
