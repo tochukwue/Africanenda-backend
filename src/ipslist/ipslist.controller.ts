@@ -31,7 +31,7 @@ export class IpslistController {
     return this.ipslistService.searchSystemNames(term);
   }
 
-    @Get('french/general-data/search-system-names')
+  @Get('french/general-data/search-system-names')
   @ApiQuery({
     name: 'term',
     required: true,
@@ -78,7 +78,7 @@ export class IpslistController {
     return this.ipslistService.getByGeographicReach(geographicReach);
   }
 
-    @Get('french/general-data/by-geographic-reach')
+  @Get('french/general-data/by-geographic-reach')
   @ApiQuery({
     name: 'geographicReach',
     required: true,
@@ -105,7 +105,7 @@ export class IpslistController {
   }
 
 
-  
+
   @Post('value-data/graph/value')
   @ApiOperation({ summary: 'Get ValueData with country codes by system names and optional year filtering' })
   @ApiBody({
@@ -144,7 +144,7 @@ export class IpslistController {
     return this.ipslistService.getValueDataWithCountryCode(systemNames, startYear, endYear);
   }
 
-    @Post('french/value-data/graph/value')
+  @Post('french/value-data/graph/value')
   @ApiOperation({ summary: 'Get ValueData with country codes by system names and optional year filtering' })
   @ApiBody({
     schema: {
@@ -222,7 +222,7 @@ export class IpslistController {
     return this.ipslistService.getVolumeDataWithCountryCode(systemNames, startYear, endYear);
   }
 
-    @Post('french/volume-data/graph/volume')
+  @Post('french/volume-data/graph/volume')
   @ApiOperation({ summary: 'Get VolumeData with country codes by system names and optional year filtering' })
   @ApiBody({
     schema: {
@@ -267,7 +267,7 @@ export class IpslistController {
     return this.ipslistService.getAllValueDataExceptTotal();
   }
 
-  
+
   @Get('french/value/all-except-total')
   @ApiOperation({ summary: 'Fetch all ValueData except the one with systemName "Total"' })
   async frenchGetAllValueDataExceptTotal() {
@@ -281,7 +281,7 @@ export class IpslistController {
     return this.ipslistService.getValueDataTotal();
   }
 
-    @Get('french/value/total')
+  @Get('french/value/total')
   @ApiOperation({ summary: 'Fetch ValueData where systemName = "Total"' })
   async frenchGetValueDataTotal() {
     return this.ipslistService.frenchGetValueDataTotal();
@@ -293,7 +293,7 @@ export class IpslistController {
     return this.ipslistService.getAllVolumeDataExceptTotal();
   }
 
-    @Get('french/volume/all-except-total')
+  @Get('french/volume/all-except-total')
   @ApiOperation({ summary: 'Fetch all VolumeData except the one with systemName "Total"' })
   async frenchGetAllVolumeDataExceptTotal() {
     return this.ipslistService.frenchGetAllVolumeDataExceptTotal();
@@ -305,7 +305,7 @@ export class IpslistController {
     return this.ipslistService.getVolumeDataTotal();
   }
 
-    @Get('french/volume/total')
+  @Get('french/volume/total')
   @ApiOperation({ summary: 'Fetch VolumeData where systemName = "Total"' })
   async frenchGetVolumeDataTotal() {
     return this.ipslistService.frenchGetVolumeDataTotal();
@@ -319,8 +319,8 @@ export class IpslistController {
   async getGeneralDataGroupedByRegion() {
     return this.ipslistService.getGeneralDataGroupedByRegionAndCountry();
   }
-  
-    @Get('french/ips-profile/grouped-by-region')
+
+  @Get('french/ips-profile/grouped-by-region')
   @ApiOperation({
     summary: 'Get General Data grouped by geographic region',
     description: 'Fetches all General Data records grouped by geographicRegion, including countryCode for each record.',
@@ -339,7 +339,7 @@ export class IpslistController {
     return this.ipslistService.countByDomesticAndRegional();
   }
 
-    @Get('french/categories/summary')
+  @Get('french/categories/summary')
   @ApiOperation({
     summary: 'Get IPS categories summary',
     description:
@@ -350,51 +350,97 @@ export class IpslistController {
   }
 
   // Option 1: POST endpoint with request body (RECOMMENDED)
-@Post('by-categories')
-@ApiOperation({
-  summary: 'Get IPS data by categories with filters',
-  description:
-    'Retrieve IPS records filtered by categories and optional additional filters. ' +
-    'Supports filtering by GeneralData fields (filters) and ipsName (only for regional categories).',
-})
-@ApiResponse({
-  status: 200,
-  description: 'List of IPS records enriched with country code and extra data.',
-  schema: {
-    example: {
-      categories: ['LIVE: DOMESTIC IPS'],
-      totalCategories: 1,
-      results: [
-        {
-          category: 'LIVE: DOMESTIC IPS',
-          total: 2,
-          data: [
-            {
-              category: 'LIVE: DOMESTIC IPS',
-              ipsName: 'Example IPS',
-              geography: 'Kenya',
-              countryCode: 'KE',
-              supportedUseCases: ['P2P', 'Retail'],
-              volumes2024: 500000,
-              values2024: 2000000,
-            },
-          ],
-        },
-      ],
+  @Post('by-categories')
+  @ApiOperation({
+    summary: 'Get IPS data by categories with filters',
+    description:
+      'Retrieve IPS records filtered by categories and optional additional filters. ' +
+      'Supports filtering by GeneralData fields (filters) and ipsName (only for regional categories).',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of IPS records enriched with country code and extra data.',
+    schema: {
+      example: {
+        categories: ['LIVE: DOMESTIC IPS'],
+        totalCategories: 1,
+        results: [
+          {
+            category: 'LIVE: DOMESTIC IPS',
+            total: 2,
+            data: [
+              {
+                category: 'LIVE: DOMESTIC IPS',
+                ipsName: 'Example IPS',
+                geography: 'Kenya',
+                countryCode: 'KE',
+                supportedUseCases: ['P2P', 'Retail'],
+                volumes2024: 500000,
+                values2024: 2000000,
+              },
+            ],
+          },
+        ],
+      },
     },
-  },
-})
-async getByCategoriesPost(@Body() dto: GetByCategoriesDto) {
-  console.log('Categories:', dto.categories);
-  console.log('Filters:', dto.filters);
-  console.log('IpsNameFilter:', dto.ipsNameFilter);
+  })
+  async getByCategoriesPost(@Body() dto: GetByCategoriesDto) {
+    console.log('Categories:', dto.categories);
+    console.log('Filters:', dto.filters);
+    console.log('IpsNameFilter:', dto.ipsNameFilter);
 
-  return this.ipslistService.getByCategoriesEnriched(
-    dto.categories,
-    dto.filters,
-    dto.ipsNameFilter,
-  );
-}
+    return this.ipslistService.getByCategoriesEnriched(
+      dto.categories,
+      dto.filters,
+      dto.ipsNameFilter,
+    );
+  }
+
+  @Post('french/by-categories')
+  @ApiOperation({
+    summary: 'Get IPS data by categories with filters',
+    description:
+      'Retrieve IPS records filtered by categories and optional additional filters. ' +
+      'Supports filtering by GeneralData fields (filters) and ipsName (only for regional categories).',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of IPS records enriched with country code and extra data.',
+    schema: {
+      example: {
+        categories: ['LIVE: DOMESTIC IPS'],
+        totalCategories: 1,
+        results: [
+          {
+            category: 'LIVE: DOMESTIC IPS',
+            total: 2,
+            data: [
+              {
+                category: 'LIVE: DOMESTIC IPS',
+                ipsName: 'Example IPS',
+                geography: 'Kenya',
+                countryCode: 'KE',
+                supportedUseCases: ['P2P', 'Retail'],
+                volumes2024: 500000,
+                values2024: 2000000,
+              },
+            ],
+          },
+        ],
+      },
+    },
+  })
+  async getByCategoriesEnrichedFrench(@Body() dto: GetByCategoriesDto) {
+    console.log('Categories:', dto.categories);
+    console.log('Filters:', dto.filters);
+    console.log('IpsNameFilter:', dto.ipsNameFilter);
+
+    return this.ipslistService.getByCategoriesEnrichedFrench(
+      dto.categories,
+      dto.filters,
+      dto.ipsNameFilter,
+    );
+  }
 
   //   @Get('by-categories')
   //   @ApiOperation({
@@ -468,7 +514,7 @@ async getByCategoriesPost(@Body() dto: GetByCategoriesDto) {
     return this.ipslistService.manualSyncIpsActivity();
   }
 
-    @Post('french/manual-sync')
+  @Post('french/manual-sync')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Manually sync IPS Activity data from Google Sheets',

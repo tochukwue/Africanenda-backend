@@ -17,6 +17,7 @@ export class GeneraldataService {
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async handleCron() {
     await this.googleSheetService.fetchAndSyncGeneralData();
+    await this.googleSheetService.FrenchfetchAndSyncGeneralData();
   }
 
     // 📌 Manual sync function

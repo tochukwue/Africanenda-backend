@@ -16,6 +16,7 @@ export class VolumedataService {
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async handleCron() {
     await this.googleSheetService.fetchAndSyncVolumeData();
+    await this.googleSheetService.FrenchfetchAndSyncVolumeData();
   }
 
       // 📌 Manual sync function

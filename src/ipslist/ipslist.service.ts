@@ -450,7 +450,7 @@ export class IpslistService {
   }
 
 
-    async countByDomesticAndRegional() {
+  async countByDomesticAndRegional() {
     const categoryAliases: Record<string, string> = {
       'LIVE: DOMESTIC IPS': 'Live',
       'DOMESTIC: IN DEVELOPMENT': 'In-development',
@@ -527,7 +527,12 @@ export class IpslistService {
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
- /** 🔍 Search for System Names */
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
   async frenchSearchSystemNames(term: string): Promise<{ systemName: string }[]> {
     if (!term || term.trim().length < 2) {
       throw new BadRequestException('Le terme de recherche doit comporter au moins 2 caractères.');
@@ -540,7 +545,8 @@ export class IpslistService {
     return results;
   }
 
-  /** 📊 Get GeneralData list by geographicReach */
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
   async frenchGetByGeographicReach(geographicReach: string): Promise<any[]> {
     if (!geographicReach) {
       throw new BadRequestException('geographicReach est requis.');
@@ -614,7 +620,8 @@ export class IpslistService {
     });
   }
 
-  /** 💶 Get Value Data with Country Code */
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
   async frenchGetValueDataWithCountryCode(systemNames: string[], startYear?: number, endYear?: number) {
     if (!Array.isArray(systemNames) || systemNames.length === 0) {
       throw new BadRequestException('systemNames doit être un tableau non vide.');
@@ -626,10 +633,10 @@ export class IpslistService {
     const includeTotal = systemNames.some(name => name.toLowerCase() === "total");
     const results = includeTotal
       ? await this.frenchvalueDataModel.find({}).lean()
-      : await this.frenchvalueDataModel.find({ systemName: { $in: [...systemNames,"total des taux de change"] } }).lean();
+      : await this.frenchvalueDataModel.find({ systemName: { $in: [...systemNames, "total des taux de change"] } }).lean();
 
     let mapped: any[] = [];
-    if (systemNames.length === 1 && systemNames[0].toLowerCase() === "total des taux de change") {
+    if (systemNames.length === 1 && systemNames[0].toLowerCase() === "total") {
       const grouped = results.reduce((acc, item) => {
         const key = item.geographicReach || 'UNKNOWN';
         if (!acc[key]) {
@@ -696,7 +703,8 @@ export class IpslistService {
     return mapped;
   }
 
-  /** 📦 Get Volume Data with Country Code */
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
   async frenchGetVolumeDataWithCountryCode(systemNames: string[], startYear?: number, endYear?: number) {
     if (!Array.isArray(systemNames) || systemNames.length === 0) {
       throw new BadRequestException('systemNames doit être un tableau non vide.');
@@ -708,10 +716,10 @@ export class IpslistService {
     const includeTotal = systemNames.some(name => name.toLowerCase() === "total");
     const results = includeTotal
       ? await this.frenchvolumeDataModel.find({}).lean()
-      : await this.frenchvolumeDataModel.find({ systemName: { $in: [...systemNames,"total des taux de change"] } }).lean();
+      : await this.frenchvolumeDataModel.find({ systemName: { $in: [...systemNames, "total des taux de change"] } }).lean();
 
     let mapped: any[] = [];
-    if (systemNames.length === 1 && systemNames[0].toLowerCase() === "total des taux de change") {
+    if (systemNames.length === 1 && systemNames[0].toLowerCase() === "total") {
       const grouped = results.reduce((acc, item) => {
         const key = item.geographicReach || 'UNKNOWN';
         if (!acc[key]) {
@@ -778,7 +786,8 @@ export class IpslistService {
     return mapped;
   }
 
-  /** 📈 Get all value data except total */
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
   async frenchGetAllValueDataExceptTotal() {
     const records = await this.frenchvalueDataModel.find({ systemName: { $ne: 'Total des taux de change' } }).lean();
     return records.map(record => ({
@@ -787,7 +796,8 @@ export class IpslistService {
     }));
   }
 
-  /** 💰 Get value data for total */
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
   async frenchGetValueDataTotal() {
     const record = await this.frenchvalueDataModel.findOne({ systemName: 'Total des taux de change' }).lean();
     return record
@@ -795,7 +805,8 @@ export class IpslistService {
       : null;
   }
 
-  /** 📊 Get all volume data except total */
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
   async frenchGetAllVolumeDataExceptTotal() {
     const records = await this.frenchvolumeDataModel.find({ systemName: { $ne: 'Total des taux de change' } }).lean();
     return records.map(record => ({
@@ -804,7 +815,8 @@ export class IpslistService {
     }));
   }
 
-  /** 📦 Get volume data total */
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
   async frenchGetVolumeDataTotal() {
     const record = await this.frenchvolumeDataModel.findOne({ systemName: 'Total des taux de change' }).lean();
     return record
@@ -812,7 +824,8 @@ export class IpslistService {
       : null;
   }
 
-  /** 🌍 Group General Data by Region and Country */
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
   async frenchGetGeneralDataGroupedByRegionAndCountry() {
     const records = await this.frenchgeneralDataModel.find().lean();
     const groupedByRegion = records.reduce((acc, record) => {
@@ -841,221 +854,374 @@ export class IpslistService {
       })),
     }));
   }
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  async FrenchcountByDomesticAndRegional() {
+    // French-to-English alias mapping for readability or UI labels
+    const categoryAliases: Record<string, string> = {
+      "EN SERVICE : IPS NATIONAUX": "En service (nationaux)",
+      "DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "En développement (domestique)",
+      "Pays n'ayant pas d'activité IPS au niveau national": "Aucune activité IPS nationale",
+      "EN SERVICE: IPS RÉGIONAL": "En service (régional)",
+      "RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "En développement (régional)",
+      "EN PHASE PILOTE": "En phase pilote",
+      "Pays n'ayant pas d'activité régionale en matière d'IPS": "Aucune activité IPS régionale",
+    };
 
-async FrenchcountByDomesticAndRegional() {
-  // French-to-English alias mapping for readability or UI labels
-const categoryAliases: Record<string, string> = {
-  "EN SERVICE : IPS NATIONAUX": "En service (nationaux)",
-  "DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "En développement (domestique)",
-  "Pays n'ayant pas d'activité IPS au niveau national": "Aucune activité IPS nationale",
-  "EN SERVICE: IPS RÉGIONAL": "En service (régional)",
-  "RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "En développement (régional)",
-  "EN PHASE PILOTE": "En phase pilote",
-  "Pays n'ayant pas d'activité régionale en matière d'IPS": "Aucune activité IPS régionale",
-};
+    // Domestic (national-level) categories
+    const domesticCategories = [
+      'EN SERVICE : IPS NATIONAUX',
+      'DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)',
+      `Pays n'ayant pas d'activité IPS au niveau national`,
+    ];
 
-  // Domestic (national-level) categories
-  const domesticCategories = [
-    'EN SERVICE : IPS NATIONAUX',
-    'DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)',
-    `Pays n'ayant pas d'activité IPS au niveau national`,
-  ];
+    // Regional (cross-border) categories
+    const regionalCategories = [
+      'EN SERVICE: IPS RÉGIONAL',
+      'RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)',
+      'EN PHASE PILOTE',
+      `Pays n'ayant pas d'activité régionale en matière d'IPS`,
+    ];
 
-  // Regional (cross-border) categories
-  const regionalCategories = [
-    'EN SERVICE: IPS RÉGIONAL',
-    'RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)',
-    'EN PHASE PILOTE',
-    `Pays n'ayant pas d'activité régionale en matière d'IPS`,
-  ];
+    /**
+     * Internal helper to group and count by category.
+     * For regional categories, also lists unique IPS names.
+     */
+    const buildGroup = async (
+      groupName: string,
+      categories: string[],
+      isRegional = false,
+    ) => {
+      const categoriesWithCounts = await Promise.all(
+        categories.map(async (category) => {
+          const docs = await this.frenchipsActivityModel.find({ category })
+            .lean()
+            .exec();
 
-  /**
-   * Internal helper to group and count by category.
-   * For regional categories, also lists unique IPS names.
-   */
-  const buildGroup = async (
-    groupName: string,
+          const total = docs.length;
+
+          // For regional only: collect unique IPS names
+          let ipsNames: string[] = [];
+          if (isRegional) {
+            ipsNames = [
+              ...new Set(
+                docs
+                  .map((doc) => doc.ipsName)
+                  .filter((name): name is string => !!name && name.trim() !== ''),
+              ),
+            ];
+          }
+
+          return {
+            category,
+            alias: categoryAliases[category] || category,
+            total,
+            ...(isRegional ? { ipsNames } : {}), // add ipsNames only for regional
+          };
+        }),
+      );
+
+      const total = categoriesWithCounts.reduce((sum, c) => sum + c.total, 0);
+
+      return {
+        group: groupName,
+        total,
+        categories: categoriesWithCounts,
+      };
+    };
+
+    // Build both groups
+    const domestic = await buildGroup('Domestique', domesticCategories);
+    const regional = await buildGroup('Régional', regionalCategories, true);
+
+    // Final structure
+    return {
+      totalGroups: 2,
+      groups: [domestic, regional],
+    };
+  }
+
+
+  //////////////////////////////////////////FRENCH CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////FRENCH CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////FRENCH CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////FRENCH CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////FRENCH CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////FRENCH CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////FRENCH CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////FRENCH CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////FRENCH CATEGORY FILTERS////////////////////////////////////////////
+
+  async getByCategoriesEnrichedFrench(
     categories: string[],
-    isRegional = false,
-  ) => {
-    const categoriesWithCounts = await Promise.all(
-      categories.map(async (category) => {
-        const docs = await this.frenchipsActivityModel.find({ category })
-          .lean()
-          .exec();
+    filters?: any,
+    ipsNameFilter?: string | string[]
+  ) {
+    const validCategories = [
+      "EN SERVICE : IPS NATIONAUX",
+      "DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)",
+      "Pays n'ayant pas d'activité IPS au niveau national",
+      "EN SERVICE: IPS RÉGIONAL",
+      "RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)",
+      "EN PHASE PILOTE",
+      "Pays n'ayant pas d'activité régionale en matière d'IPS",
+    ];
 
-        const total = docs.length;
+    // ✅ Si aucune catégorie n’est fournie mais des filtres existent
+    if ((!categories || categories.length === 0) && filters && Object.keys(filters).length > 0) {
+      categories = ["EN SERVICE : IPS NATIONAUX", "EN SERVICE: IPS RÉGIONAL"];
+    }
 
-        // For regional only: collect unique IPS names
-        let ipsNames: string[] = [];
-        if (isRegional) {
-          ipsNames = [
-            ...new Set(
-              docs
-                .map((doc) => doc.ipsName)
-                .filter((name): name is string => !!name && name.trim() !== ''),
-            ),
-          ];
+    // ✅ Validation
+    if (!Array.isArray(categories) || categories.length === 0) {
+      throw new BadRequestException("Les catégories doivent être un tableau non vide.");
+    }
+
+    categories.forEach((c) => {
+      if (!validCategories.includes(c)) {
+        throw new BadRequestException(`Catégorie invalide : ${c}`);
+      }
+    });
+
+    // ✅ Si filtres existent, ajouter les IPS en service
+    if (filters && Object.keys(filters).length > 0) {
+      if (!categories.includes("EN SERVICE : IPS NATIONAUX")) {
+        categories.push("EN SERVICE : IPS NATIONAUX");
+      }
+      if (!categories.includes("EN SERVICE: IPS RÉGIONAL")) {
+        categories.push("EN SERVICE: IPS RÉGIONAL");
+      }
+    }
+
+    let allResults = [];
+
+    for (const category of categories) {
+      let ipsList = await this.frenchipsActivityModel.find({ category }).lean().exec();
+      let enrichedData = [];
+
+      switch (category) {
+        // ✅ EN SERVICE : IPS NATIONAUX
+        case "EN SERVICE : IPS NATIONAUX": {
+          let filteredIpsList = ipsList;
+
+          // ✅ Appliquer les filtres basés sur les données générales
+          if (filters && Object.keys(filters).length > 0) {
+            const filterQueries: any[] = [];
+
+            for (const [field, values] of Object.entries(filters)) {
+              if (!Array.isArray(values)) continue;
+
+              if (field === "governanceTypology") {
+                const orConditions: any[] = [];
+                for (const value of values) {
+                  const cleanedValue = String(value).trim();
+                  if (cleanedValue === "Scheme rules publicly available") {
+                    orConditions.push({ schemeRulesPublic: { $regex: "^yes$", $options: "i" } });
+                  } else if (cleanedValue === "Indirect Participation") {
+                    orConditions.push({ nonBankingFIsSponsorship: { $regex: "^yes$", $options: "i" } });
+                  } else {
+                    const normalizedValue =
+                      cleanedValue === "Public Private Partnership (PPP)"
+                        ? "Public Private Partnership"
+                        : cleanedValue;
+                    orConditions.push({ governanceTypology: { $regex: normalizedValue, $options: "i" } });
+                  }
+                }
+                if (orConditions.length > 0) filterQueries.push({ $or: orConditions });
+                continue;
+              }
+
+              if (field === "IPSFunctionality") {
+                const orConditions: any[] = [];
+                for (const val of values) {
+                  const normalized = String(val).trim().toLowerCase();
+                  if (["qr code", "ussd", "app", "browser"].includes(normalized)) {
+                    orConditions.push({ supportedChannels: { $regex: normalized, $options: "i" } });
+                  }
+                  if (normalized === "apiusefunction") {
+                    orConditions.push({ apiUseFunction: { $regex: "^yes$", $options: "i" } });
+                  }
+                  if (normalized === "thirdpartyconnectionsenabled") {
+                    orConditions.push({ thirdPartyConnectionsEnabled: { $regex: "^yes$", $options: "i" } });
+                  }
+                  if (normalized === "realtimepaymentconfirmation") {
+                    orConditions.push({ realTimePaymentConfirmation: { $regex: "^yes$", $options: "i" } });
+                  }
+                  if (normalized === "pullrequesttopayenabled") {
+                    orConditions.push({ pullRequestToPayEnabled: { $regex: "^yes$", $options: "i" } });
+                  }
+                }
+                if (orConditions.length > 0) filterQueries.push({ $or: orConditions });
+              } else {
+                const regexConditions = values.map((v) => ({
+                  [field]: { $regex: String(v).trim(), $options: "i" },
+                }));
+                filterQueries.push({ $or: regexConditions });
+              }
+            }
+
+            const query: any = filterQueries.length > 0 ? { $and: filterQueries } : {};
+            const matchingGeneral = await this.generalDataModel.find(query).select("systemName").lean();
+            const matchingNames = new Set(matchingGeneral.map((g) => g.systemName));
+            filteredIpsList = ipsList.filter((ips) => matchingNames.has(ips.ipsName));
+          }
+
+          // ✅ Helper de somme
+          const sumFields = (obj: any, fields: string[]) =>
+            fields.reduce((sum, field) => {
+              const val = obj?.[field];
+              const num = Number(val);
+              return !isNaN(num) ? sum + num : sum;
+            }, 0);
+
+          // ✅ Enrichissement
+          const rawEnrichedData = await Promise.all(
+            filteredIpsList.map(async (ips) => {
+              const volume = await this.frenchvolumeDataModel.findOne({ systemName: ips.ipsName }).lean();
+              const value = await this.frenchvalueDataModel.findOne({ systemName: ips.ipsName }).lean();
+              const general = await this.frenchgeneralDataModel.findOne({ systemName: ips.ipsName }).lean();
+
+              const totalVolumes = sumFields(volume, ["volumes2024"]);
+              const totalValues = sumFields(value, ["values2024"]);
+
+              return {
+                geography: ips.geography,
+                countryCode: this.getCountryCodeFrench(ips.geography),
+                ipsName: ips.ipsName,
+                supportedUseCases: general?.supportedUseCases || null,
+                inclusivityRanking: general?.inclusivityRanking || null,
+                volumes2024: totalVolumes || 0,
+                values2024: totalValues || 0,
+              };
+            })
+          );
+
+          // ✅ Groupement par géographie
+          const groupedData = rawEnrichedData.reduce((acc, item) => {
+            const existing = acc[item.geography];
+            if (existing) {
+              existing.volumes2024 += item.volumes2024;
+              existing.values2024 += item.values2024;
+              existing.ipsNames.push(item.ipsName);
+              if (item.supportedUseCases) existing.supportedUseCasesSet.add(item.supportedUseCases);
+              if (item.inclusivityRanking) existing.inclusivityRankingSet.add(item.inclusivityRanking);
+            } else {
+              acc[item.geography] = {
+                category,
+                geography: item.geography,
+                countryCode: item.countryCode,
+                volumes2024: item.volumes2024,
+                values2024: item.values2024,
+                ipsNames: [item.ipsName],
+                supportedUseCasesSet: new Set(item.supportedUseCases ? [item.supportedUseCases] : []),
+                inclusivityRankingSet: new Set(item.inclusivityRanking ? [item.inclusivityRanking] : []),
+              };
+            }
+            return acc;
+          }, {} as Record<string, any>);
+
+          enrichedData = Object.values(groupedData).map((item: any) => ({
+            category: item.category,
+            geography: item.geography,
+            countryCode: item.countryCode,
+            volumes2024: item.volumes2024,
+            values2024: item.values2024,
+            ipsNames: item.ipsNames,
+            supportedUseCases: Array.from(item.supportedUseCasesSet),
+            inclusivityRanking: Array.from(item.inclusivityRankingSet),
+          }));
+          break;
         }
 
-        return {
-          category,
-          alias: categoryAliases[category] || category,
-          total,
-          ...(isRegional ? { ipsNames } : {}), // add ipsNames only for regional
-        };
-      }),
-    );
+        // ✅ Développement domestique & aucun IPS national
+        case "DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)":
+        case "Pays n'ayant pas d'activité IPS au niveau national":
+          enrichedData = ipsList.map((ips) => ({
+            category,
+            geography: ips.geography,
+            countryCode: this.getCountryCodeFrench(ips.geography),
+            status: ips.status || null,
+          }));
+          break;
 
-    const total = categoriesWithCounts.reduce((sum, c) => sum + c.total, 0);
+        // ✅ Catégories régionales
+        case "EN SERVICE: IPS RÉGIONAL":
+        case "RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)":
+        case "EN PHASE PILOTE": {
+          let filteredIpsList = ipsList;
+
+          // ✅ Même logique de filtre que ci-dessus
+          if (filters && Object.keys(filters).length > 0) {
+            const filterQueries: any[] = [];
+            for (const [field, values] of Object.entries(filters)) {
+              if (!Array.isArray(values)) continue;
+              const regexConditions = values.map((v) => ({
+                [field]: { $regex: String(v).trim(), $options: "i" },
+              }));
+              filterQueries.push({ $or: regexConditions });
+            }
+            const query: any = filterQueries.length > 0 ? { $and: filterQueries } : {};
+            const matchingGeneral = await this.frenchgeneralDataModel.find(query).select("systemName").lean();
+            const matchingNames = new Set(matchingGeneral.map((g) => g.systemName));
+            filteredIpsList = ipsList.filter((ips) => matchingNames.has(ips.ipsName));
+          }
+
+          // ✅ Appliquer ipsNameFilter
+          if (ipsNameFilter) {
+            const filterNames = Array.isArray(ipsNameFilter)
+              ? ipsNameFilter.map((v: string) => String(v).trim().toLowerCase())
+              : [String(ipsNameFilter).trim().toLowerCase()];
+
+            filteredIpsList = filteredIpsList.filter(
+              (ips) => ips.ipsName && filterNames.includes(String(ips.ipsName).trim().toLowerCase())
+            );
+          }
+
+          // ✅ Enrichissement
+          const nestedData = await Promise.all(
+            filteredIpsList.map(async (ips) => {
+              const general = await this.frenchgeneralDataModel.findOne({ systemName: ips.ipsName }).lean();
+              const countries = this.splitCountries(ips.geographyCountries);
+              return countries.map((country) => ({
+                category,
+                country: String(country).trim(),
+                countryCode: this.getCountryCodeFrench(String(country).trim()),
+                ipsName: String(ips.ipsName || "").trim(),
+                inclusivityRanking: general?.inclusivityRanking || null,
+                ...(category !== "EN SERVICE: IPS RÉGIONAL" && {
+                  region: String(ips.region || "").trim() || null,
+                }),
+              }));
+            })
+          );
+
+          enrichedData = nestedData.flat();
+          break;
+        }
+
+        // ✅ Aucun IPS régional
+        case "Pays n'ayant pas d'activité régionale en matière d'IPS":
+          enrichedData = ipsList.map((ips) => ({
+            category,
+            geography: String(ips.geography || "").trim(),
+            countryCode: this.getCountryCodeFrench(String(ips.geography || "").trim()),
+          }));
+          break;
+      }
+
+      allResults.push({
+        category,
+        total: enrichedData.length,
+        data: enrichedData,
+      });
+    }
 
     return {
-      group: groupName,
-      total,
-      categories: categoriesWithCounts,
+      categories,
+      totalCategories: categories.length,
+      results: allResults,
     };
-  };
-
-  // Build both groups
-  const domestic = await buildGroup('Domestique', domesticCategories);
-  const regional = await buildGroup('Régional', regionalCategories, true);
-
-  // Final structure
-  return {
-    totalGroups: 2,
-    groups: [domestic, regional],
-  };
-}
-
-  
-
-private getCountryCodeFrench(nomPays?: string) {
-  if (!nomPays) return null;
-
-  const nomNettoye = nomPays.trim();
-
-  // Mapping manuel des pays africains (noms français et anglais)
-  const codePaysMap: { [key: string]: string } = {
-    'Algérie': 'DZ',
-    'Angola': 'AO',
-    'Bénin': 'BJ',
-    'Botswana': 'BW',
-    'Burkina Faso': 'BF',
-    'Burundi': 'BI',
-    'Cabo Verde': 'CV',
-    'Cap-Vert': 'CV',
-    'Cameroun': 'CM',
-    'République centrafricaine': 'CF',
-    'Tchad': 'TD',
-    'Comores': 'KM',
-    'Congo': 'CG',
-    'République du Congo': 'CG',
-    'République démocratique du Congo': 'CD',
-    'Congo, Rép. dém.': 'CD',
-    'Congo, Rép. dém. Démocratique': 'CD',
-    "Congo, Dem. Rep.": 'CD',
-    "Dem. Rep. ": 'CD',
-    "Dem Rep.": 'CD',
-    'Côte d\'Ivoire': 'CI',
-    'Cote d\'Ivoire': 'CI',
-    'Djibouti': 'DJ',
-    'Égypte': 'EG',
-    'Egypt': 'EG',
-    'Guinée équatoriale': 'GQ',
-    'Érythrée': 'ER',
-    'Eswatini': 'SZ',
-    'Swaziland': 'SZ',
-    'Éthiopie': 'ET',
-    'Gabon': 'GA',
-    'Gambie': 'GM',
-    'Ghana': 'GH',
-    'Guinée': 'GN',
-    'Guinée-Bissau': 'GW',
-    'Kenya': 'KE',
-    'Lesotho': 'LS',
-    'Liberia': 'LR',
-    'Libye': 'LY',
-    'Madagascar': 'MG',
-    'Malawi': 'MW',
-    'Mali': 'ML',
-    'Mauritanie': 'MR',
-    'Maurice': 'MU',
-    'Maroc': 'MA',
-    'Mozambique': 'MZ',
-    'Namibie': 'NA',
-    'Niger': 'NE',
-    'Nigeria': 'NG',
-    'Rwanda': 'RW',
-    'São Tomé et Príncipe': 'ST',
-    'Sao Tome and Principe': 'ST',
-    'Sénégal': 'SN',
-    'Seychelles': 'SC',
-    'Sierra Leone': 'SL',
-    'Somalie': 'SO',
-    'Somaliland': 'SO',
-    'Afrique du Sud': 'ZA',
-    'Soudan du Sud': 'SS',
-    'Soudan': 'SD',
-    'Tanzanie': 'TZ',
-    'République-Unie de Tanzanie': 'TZ',
-    'Togo': 'TG',
-    'Tunisie': 'TN',
-    'Ouganda': 'UG',
-    'Zambie': 'ZM',
-    'Zimbabwe': 'ZW',
-  };
-
-  // Recherche directe dans le mapping
-  if (codePaysMap[nomNettoye]) {
-    return codePaysMap[nomNettoye];
   }
-
-  // Recherche floue si non trouvé
-  const resultatFlou = this.frenchAfricanCountriesFuse.search(nomNettoye);
-  if (resultatFlou.length > 0 && resultatFlou[0].score <= 0.3) {
-    const paysCorrespondant = resultatFlou[0].item;
-    if (codePaysMap[paysCorrespondant]) {
-      return codePaysMap[paysCorrespondant];
-    }
-  }
-
-  // Recherche via la librairie en dernier recours
-  try {
-    const lookup = countryCodeLookup.byCountry(nomNettoye);
-    if (lookup?.iso2) return lookup.iso2;
-  } catch {}
-
-  return null;
-}
-
-private frenchSplitCountries(geoPays?: string) {
-  if (!geoPays) return [];
-  return geoPays.split(',').map((c) => c.trim()).filter(Boolean);
-}
-
-private frenchAfricanCountries = [
-  'Afrique du Sud', 'Algérie', 'Angola', 'Bénin', 'Botswana', 'Burkina Faso',
-  'Burundi', 'Cabo Verde', 'Cameroun', 'République centrafricaine', 'Tchad',
-  'Comores', 'Congo', 'République démocratique du Congo', 'Côte d\'Ivoire',
-  'Djibouti', 'Égypte', 'Guinée équatoriale', 'Érythrée', 'Eswatini',
-  'Éthiopie', 'Gabon', 'Gambie', 'Ghana', 'Guinée', 'Guinée-Bissau',
-  'Kenya', 'Lesotho', 'Liberia', 'Libye', 'Madagascar', 'Malawi', 'Mali',
-  'Mauritanie', 'Maurice', 'Maroc', 'Mozambique', 'Namibie', 'Niger',
-  'Nigeria', 'Rwanda', 'São Tomé et Príncipe', 'Sénégal', 'Seychelles',
-  'Sierra Leone', 'Somalie', 'Afrique du Sud', 'Soudan du Sud', 'Soudan',
-  'Tanzanie', 'Togo', 'Tunisie', 'Ouganda', 'Zambie', 'Zimbabwe'
-];
-
-private frenchAfricanCountriesFuse = new (Fuse as any)(this.frenchAfricanCountries, {
-  includeScore: true,
-  threshold: 0.3
-});
-
-  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
-  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
-  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
-  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
-  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
 
 
 
@@ -1505,7 +1671,7 @@ private frenchAfricanCountriesFuse = new (Fuse as any)(this.frenchAfricanCountri
     return null;
   }
 
-    private splitCountries(geoCountries?: string) {
+  private splitCountries(geoCountries?: string) {
     if (!geoCountries) return [];
     return geoCountries.split(',').map((c) => c.trim()).filter(Boolean);
   }
@@ -1544,6 +1710,139 @@ private frenchAfricanCountriesFuse = new (Fuse as any)(this.frenchAfricanCountri
       return doc;
     });
   }
+
+
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  private getCountryCodeFrench(nomPays?: string) {
+    if (!nomPays) return null;
+
+    const nomNettoye = nomPays.trim();
+
+    // Mapping manuel des pays africains (noms français et anglais)
+    const codePaysMap: { [key: string]: string } = {
+      'Algérie': 'DZ',
+      'Angola': 'AO',
+      'Bénin': 'BJ',
+      'Botswana': 'BW',
+      'Burkina Faso': 'BF',
+      'Burundi': 'BI',
+      'Cabo Verde': 'CV',
+      'Cap-Vert': 'CV',
+      'Cameroun': 'CM',
+      'République centrafricaine': 'CF',
+      'Tchad': 'TD',
+      'Comores': 'KM',
+      'Congo': 'CG',
+      'République du Congo': 'CG',
+      'République démocratique du Congo': 'CD',
+      'Congo, Rép. dém.': 'CD',
+      'Congo, Rép. dém. Démocratique': 'CD',
+      "Congo, Dem. Rep.": 'CD',
+      "Dem. Rep. ": 'CD',
+      "Dem Rep.": 'CD',
+      'Côte d\'Ivoire': 'CI',
+      'Cote d\'Ivoire': 'CI',
+      'Djibouti': 'DJ',
+      'Égypte': 'EG',
+      'Egypt': 'EG',
+      'Guinée équatoriale': 'GQ',
+      'Érythrée': 'ER',
+      'Eswatini': 'SZ',
+      'Swaziland': 'SZ',
+      'Éthiopie': 'ET',
+      'Gabon': 'GA',
+      'Gambie': 'GM',
+      'Ghana': 'GH',
+      'Guinée': 'GN',
+      'Guinée-Bissau': 'GW',
+      'Kenya': 'KE',
+      'Lesotho': 'LS',
+      'Liberia': 'LR',
+      'Libye': 'LY',
+      'Madagascar': 'MG',
+      'Malawi': 'MW',
+      'Mali': 'ML',
+      'Mauritanie': 'MR',
+      'Maurice': 'MU',
+      'Maroc': 'MA',
+      'Mozambique': 'MZ',
+      'Namibie': 'NA',
+      'Niger': 'NE',
+      'Nigeria': 'NG',
+      'Rwanda': 'RW',
+      'São Tomé et Príncipe': 'ST',
+      'Sao Tome and Principe': 'ST',
+      'Sénégal': 'SN',
+      'Seychelles': 'SC',
+      'Sierra Leone': 'SL',
+      'Somalie': 'SO',
+      'Somaliland': 'SO',
+      'Afrique du Sud': 'ZA',
+      'Soudan du Sud': 'SS',
+      'Soudan': 'SD',
+      'Tanzanie': 'TZ',
+      'République-Unie de Tanzanie': 'TZ',
+      'Togo': 'TG',
+      'Tunisie': 'TN',
+      'Ouganda': 'UG',
+      'Zambie': 'ZM',
+      'Zimbabwe': 'ZW',
+    };
+
+    // Recherche directe dans le mapping
+    if (codePaysMap[nomNettoye]) {
+      return codePaysMap[nomNettoye];
+    }
+
+    // Recherche floue si non trouvé
+    const resultatFlou = this.frenchAfricanCountriesFuse.search(nomNettoye);
+    if (resultatFlou.length > 0 && resultatFlou[0].score <= 0.3) {
+      const paysCorrespondant = resultatFlou[0].item;
+      if (codePaysMap[paysCorrespondant]) {
+        return codePaysMap[paysCorrespondant];
+      }
+    }
+
+    // Recherche via la librairie en dernier recours
+    try {
+      const lookup = countryCodeLookup.byCountry(nomNettoye);
+      if (lookup?.iso2) return lookup.iso2;
+    } catch { }
+
+    return null;
+  }
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  private frenchSplitCountries(geoPays?: string) {
+    if (!geoPays) return [];
+    return geoPays.split(',').map((c) => c.trim()).filter(Boolean);
+  }
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  private frenchAfricanCountries = [
+    'Afrique du Sud', 'Algérie', 'Angola', 'Bénin', 'Botswana', 'Burkina Faso',
+    'Burundi', 'Cabo Verde', 'Cameroun', 'République centrafricaine', 'Tchad',
+    'Comores', 'Congo', 'République démocratique du Congo', 'Côte d\'Ivoire',
+    'Djibouti', 'Égypte', 'Guinée équatoriale', 'Érythrée', 'Eswatini',
+    'Éthiopie', 'Gabon', 'Gambie', 'Ghana', 'Guinée', 'Guinée-Bissau',
+    'Kenya', 'Lesotho', 'Liberia', 'Libye', 'Madagascar', 'Malawi', 'Mali',
+    'Mauritanie', 'Maurice', 'Maroc', 'Mozambique', 'Namibie', 'Niger',
+    'Nigeria', 'Rwanda', 'São Tomé et Príncipe', 'Sénégal', 'Seychelles',
+    'Sierra Leone', 'Somalie', 'Afrique du Sud', 'Soudan du Sud', 'Soudan',
+    'Tanzanie', 'Togo', 'Tunisie', 'Ouganda', 'Zambie', 'Zimbabwe'
+  ];
+
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  private frenchAfricanCountriesFuse = new (Fuse as any)(this.frenchAfricanCountries, {
+    includeScore: true,
+    threshold: 0.3
+  });
+
+
+
 
 
   ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
@@ -1747,6 +2046,7 @@ private frenchAfricanCountriesFuse = new (Fuse as any)(this.frenchAfricanCountri
   /////////////////////////////////////FRENCH SYNC///////////////////////////////////////
   /////////////////////////////////////FRENCH SYNC///////////////////////////////////////
   /////////////////////////////////////FRENCH SYNC///////////////////////////////////////
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async FrenchfetchAndSyncIpsActivity() {
     try {
       const credentials = JSON.parse(
