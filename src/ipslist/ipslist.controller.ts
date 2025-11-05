@@ -329,14 +329,6 @@ export class IpslistController {
     return this.ipslistService.frenchGetGeneralDataGroupedByRegionAndCountry();
   }
 
-
-
-
-
-
-
-
-
   @Get('categories/summary')
   @ApiOperation({
     summary: 'Get IPS categories summary',
@@ -345,6 +337,16 @@ export class IpslistController {
   })
   async getCategorySummary() {
     return this.ipslistService.countByDomesticAndRegional();
+  }
+
+    @Get('french/categories/summary')
+  @ApiOperation({
+    summary: 'Get IPS categories summary',
+    description:
+      'Returns counts of IPS activities grouped into **Domestic** and **Regional**, with each category having a short alias (LIVE, IN DEVELOPMENT, NO IPS, PILOT).',
+  })
+  async FrenchcountByDomesticAndRegional() {
+    return this.ipslistService.FrenchcountByDomesticAndRegional();
   }
 
   // Option 1: POST endpoint with request body (RECOMMENDED)

@@ -450,6 +450,79 @@ export class IpslistService {
   }
 
 
+    async countByDomesticAndRegional() {
+    const categoryAliases: Record<string, string> = {
+      'LIVE: DOMESTIC IPS': 'Live',
+      'DOMESTIC: IN DEVELOPMENT': 'In-development',
+      'Countries with no domestic IPS activity': 'No Domestic IPS Activity',
+      'LIVE: REGIONAL IPS': 'Live',
+      'REGIONAL: IN DEVELOPMENT': 'In-development',
+      'IN PILOT PHASE': 'Pilot',
+      'Countries with no regional IPS activity': 'No Cross-Border IPS Activity',
+      // 'IN PILOT': 'Pilot',
+    };
+
+    const domesticCategories = [
+      'LIVE: DOMESTIC IPS',
+      // 'IN PILOT',
+      'DOMESTIC: IN DEVELOPMENT',
+      'Countries with no domestic IPS activity',
+
+    ];
+
+    const regionalCategories = [
+      'LIVE: REGIONAL IPS',
+      'IN PILOT PHASE',
+      'REGIONAL: IN DEVELOPMENT',
+      'Countries with no regional IPS activity',
+    ];
+
+    const buildGroup = async (groupName: string, categories: string[], isRegional = false) => {
+      const categoriesWithCounts = await Promise.all(
+        categories.map(async (category) => {
+          const docs = await this.ipsActivityModel.find({ category }).lean().exec();
+          const total = docs.length;
+
+          // For regional only: collect unique ipsName values
+          let ipsNames: string[] = [];
+          if (isRegional) {
+            ipsNames = [
+              ...new Set(
+                docs
+                  .map((doc) => doc.ipsName)
+                  .filter((name): name is string => !!name) // filter out null/undefined
+              ),
+            ];
+          }
+
+          return {
+            category,
+            alias: categoryAliases[category] || category,
+            total,
+            ...(isRegional ? { ipsNames } : {}), // only add ipsNames for regional
+          };
+        })
+      );
+
+      const total = categoriesWithCounts.reduce((sum, c) => sum + c.total, 0);
+
+      return {
+        group: groupName,
+        total,
+        categories: categoriesWithCounts,
+      };
+    };
+
+    const domestic = await buildGroup('Domestic', domesticCategories);
+    const regional = await buildGroup('Regional', regionalCategories, true);
+
+    return {
+      totalGroups: 2,
+      groups: [domestic, regional],
+    };
+  }
+
+
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
@@ -769,6 +842,93 @@ export class IpslistService {
     }));
   }
 
+async FrenchcountByDomesticAndRegional() {
+  // French-to-English alias mapping for readability or UI labels
+const categoryAliases: Record<string, string> = {
+  "EN SERVICE : IPS NATIONAUX": "En service (nationaux)",
+  "DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "En développement (domestique)",
+  "Pays n'ayant pas d'activité IPS au niveau national": "Aucune activité IPS nationale",
+  "EN SERVICE: IPS RÉGIONAL": "En service (régional)",
+  "RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "En développement (régional)",
+  "EN PHASE PILOTE": "En phase pilote",
+  "Pays n'ayant pas d'activité régionale en matière d'IPS": "Aucune activité IPS régionale",
+};
+
+  // Domestic (national-level) categories
+  const domesticCategories = [
+    'EN SERVICE : IPS NATIONAUX',
+    'DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)',
+    `Pays n'ayant pas d'activité IPS au niveau national`,
+  ];
+
+  // Regional (cross-border) categories
+  const regionalCategories = [
+    'EN SERVICE: IPS RÉGIONAL',
+    'RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)',
+    'EN PHASE PILOTE',
+    `Pays n'ayant pas d'activité régionale en matière d'IPS`,
+  ];
+
+  /**
+   * Internal helper to group and count by category.
+   * For regional categories, also lists unique IPS names.
+   */
+  const buildGroup = async (
+    groupName: string,
+    categories: string[],
+    isRegional = false,
+  ) => {
+    const categoriesWithCounts = await Promise.all(
+      categories.map(async (category) => {
+        const docs = await this.frenchipsActivityModel.find({ category })
+          .lean()
+          .exec();
+
+        const total = docs.length;
+
+        // For regional only: collect unique IPS names
+        let ipsNames: string[] = [];
+        if (isRegional) {
+          ipsNames = [
+            ...new Set(
+              docs
+                .map((doc) => doc.ipsName)
+                .filter((name): name is string => !!name && name.trim() !== ''),
+            ),
+          ];
+        }
+
+        return {
+          category,
+          alias: categoryAliases[category] || category,
+          total,
+          ...(isRegional ? { ipsNames } : {}), // add ipsNames only for regional
+        };
+      }),
+    );
+
+    const total = categoriesWithCounts.reduce((sum, c) => sum + c.total, 0);
+
+    return {
+      group: groupName,
+      total,
+      categories: categoriesWithCounts,
+    };
+  };
+
+  // Build both groups
+  const domestic = await buildGroup('Domestique', domesticCategories);
+  const regional = await buildGroup('Régional', regionalCategories, true);
+
+  // Final structure
+  return {
+    totalGroups: 2,
+    groups: [domestic, regional],
+  };
+}
+
+  
+
 private getCountryCodeFrench(nomPays?: string) {
   if (!nomPays) return null;
 
@@ -909,77 +1069,7 @@ private frenchAfricanCountriesFuse = new (Fuse as any)(this.frenchAfricanCountri
   //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
   //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
 
-  async countByDomesticAndRegional() {
-    const categoryAliases: Record<string, string> = {
-      'LIVE: DOMESTIC IPS': 'Live',
-      'DOMESTIC: IN DEVELOPMENT': 'In-development',
-      'Countries with no domestic IPS activity': 'No Domestic IPS Activity',
-      'LIVE: REGIONAL IPS': 'Live',
-      'REGIONAL: IN DEVELOPMENT': 'In-development',
-      'IN PILOT PHASE': 'Pilot',
-      'Countries with no regional IPS activity': 'No Cross-Border IPS Activity',
-      // 'IN PILOT': 'Pilot',
-    };
 
-    const domesticCategories = [
-      'LIVE: DOMESTIC IPS',
-      // 'IN PILOT',
-      'DOMESTIC: IN DEVELOPMENT',
-      'Countries with no domestic IPS activity',
-
-    ];
-
-    const regionalCategories = [
-      'LIVE: REGIONAL IPS',
-      'IN PILOT PHASE',
-      'REGIONAL: IN DEVELOPMENT',
-      'Countries with no regional IPS activity',
-    ];
-
-    const buildGroup = async (groupName: string, categories: string[], isRegional = false) => {
-      const categoriesWithCounts = await Promise.all(
-        categories.map(async (category) => {
-          const docs = await this.ipsActivityModel.find({ category }).lean().exec();
-          const total = docs.length;
-
-          // For regional only: collect unique ipsName values
-          let ipsNames: string[] = [];
-          if (isRegional) {
-            ipsNames = [
-              ...new Set(
-                docs
-                  .map((doc) => doc.ipsName)
-                  .filter((name): name is string => !!name) // filter out null/undefined
-              ),
-            ];
-          }
-
-          return {
-            category,
-            alias: categoryAliases[category] || category,
-            total,
-            ...(isRegional ? { ipsNames } : {}), // only add ipsNames for regional
-          };
-        })
-      );
-
-      const total = categoriesWithCounts.reduce((sum, c) => sum + c.total, 0);
-
-      return {
-        group: groupName,
-        total,
-        categories: categoriesWithCounts,
-      };
-    };
-
-    const domestic = await buildGroup('Domestic', domesticCategories);
-    const regional = await buildGroup('Regional', regionalCategories, true);
-
-    return {
-      totalGroups: 2,
-      groups: [domestic, regional],
-    };
-  }
 
   async getByCategoriesEnriched(
     categories: string[],
