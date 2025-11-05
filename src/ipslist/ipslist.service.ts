@@ -622,169 +622,200 @@ export class IpslistService {
 
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
-  async frenchGetValueDataWithCountryCode(systemNames: string[], startYear?: number, endYear?: number) {
-    if (!Array.isArray(systemNames) || systemNames.length === 0) {
-      throw new BadRequestException('systemNames doit être un tableau non vide.');
-    }
-    if (startYear && endYear && startYear > endYear) {
-      throw new BadRequestException('startYear ne peut pas être supérieur à endYear.');
-    }
-
-    const includeTotal = systemNames.some(name => name.toLowerCase() === "total");
-    const results = includeTotal
-      ? await this.frenchvalueDataModel.find({}).lean()
-      : await this.frenchvalueDataModel.find({ systemName: { $in: [...systemNames, "total des taux de change"] } }).lean();
-
-    let mapped: any[] = [];
-    if (systemNames.length === 1 && systemNames[0].toLowerCase() === "total") {
-      const grouped = results.reduce((acc, item) => {
-        const key = item.geographicReach || 'UNKNOWN';
-        if (!acc[key]) {
-          acc[key] = { geographicReach: key, countryCode: this.getCountryCodeFrench(key), systemNames: [] };
-          const range = startYear && endYear ? [startYear, endYear] : [2020, 2024];
-          for (let y = range[0]; y <= range[1]; y++) acc[key][`values${y}`] = 0;
-        }
-        acc[key].systemNames.push(item.systemName);
-        const fields = Object.keys(item).filter(k => k.startsWith('values'));
-        for (const field of fields) {
-          const yearMatch = field.match(/(\d{4})$/);
-          if (yearMatch) {
-            const year = parseInt(yearMatch[1], 10);
-            if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
-              const val = item[field];
-              const num = Number(val);
-              if (!isNaN(num)) acc[key][field] = (acc[key][field] || 0) + num;
-            }
-          }
-        }
-        return acc;
-      }, {} as Record<string, any>);
-      mapped = Object.values(grouped);
-    } else {
-      mapped = results.map(item => {
-        const filteredItem: any = {
-          geographicReach: item.geographicReach,
-          countryCode: this.getCountryCodeFrench(item.geographicReach),
-          systemNames: [item.systemName],
-        };
-        const fields = Object.keys(item).filter(k => k.startsWith('values'));
-        for (const field of fields) {
-          const yearMatch = field.match(/(\d{4})$/);
-          if (yearMatch) {
-            const year = parseInt(yearMatch[1], 10);
-            if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
-              filteredItem[field] = item[field];
-            }
-          }
-        }
-        return filteredItem;
-      });
-    }
-
-    if (includeTotal) {
-      const totalObj = mapped.find(item =>
-        item.systemNames.some(name => name.toLowerCase() === 'total des taux de change'),
-      );
-      const otherNames = systemNames
-        .filter(name => name.toLowerCase() !== 'total des taux de change')
-        .map(name => name.toLowerCase());
-      let data;
-      if (otherNames.length === 0) {
-        data = mapped.filter(
-          item => !item.systemNames.some(name => name.toLowerCase() === 'total des taux de change'),
-        );
-      } else {
-        data = mapped.filter(item =>
-          item.systemNames.some(name => otherNames.includes(name.toLowerCase())),
-        );
-      }
-      return { total: totalObj || null, data };
-    }
-    return mapped;
+ async frenchGetValueDataWithCountryCode(systemNames: string[], startYear?: number, endYear?: number) {
+  if (!Array.isArray(systemNames) || systemNames.length === 0) {
+    throw new BadRequestException('systemNames doit être un tableau non vide.');
   }
+  if (startYear && endYear && startYear > endYear) {
+    throw new BadRequestException('startYear ne peut pas être supérieur à endYear.');
+  }
+
+  // Normalize and detect if "total" is requested
+  const normalized = systemNames.map(n => n.trim().toLowerCase());
+  const includeTotal = normalized.includes("total");
+
+  // If "total" was requested, fetch all entries — same as English version
+  const results = includeTotal
+    ? await this.frenchvalueDataModel.find({}).lean()
+    : await this.frenchvalueDataModel.find({
+        systemName: { $in: [...systemNames, "Total des taux de change", "total des taux de change"] },
+      }).lean();
+
+  let mapped: any[] = [];
+
+  // Handle full TOTAL request (aggregate all)
+  if (systemNames.length === 1 && normalized[0] === "total") {
+    const grouped = results.reduce((acc, item) => {
+      const key = item.geographicReach || 'UNKNOWN';
+      if (!acc[key]) {
+        acc[key] = {
+          geographicReach: key,
+          countryCode: this.getCountryCodeFrench(key),
+          systemNames: [],
+        };
+        const range = startYear && endYear ? [startYear, endYear] : [2020, 2024];
+        for (let y = range[0]; y <= range[1]; y++) acc[key][`values${y}`] = 0;
+      }
+
+      acc[key].systemNames.push(item.systemName);
+      const fields = Object.keys(item).filter(k => k.startsWith('values'));
+      for (const field of fields) {
+        const yearMatch = field.match(/(\d{4})$/);
+        if (yearMatch) {
+          const year = parseInt(yearMatch[1], 10);
+          if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
+            const val = item[field];
+            const num = Number(val);
+            if (!isNaN(num)) acc[key][field] = (acc[key][field] || 0) + num;
+          }
+        }
+      }
+      return acc;
+    }, {} as Record<string, any>);
+
+    mapped = Object.values(grouped);
+  } else {
+    // For specific system names
+    mapped = results.map(item => {
+      const filteredItem: any = {
+        geographicReach: item.geographicReach,
+        countryCode: this.getCountryCodeFrench(item.geographicReach),
+        systemNames: [item.systemName],
+      };
+      const fields = Object.keys(item).filter(k => k.startsWith('values'));
+      for (const field of fields) {
+        const yearMatch = field.match(/(\d{4})$/);
+        if (yearMatch) {
+          const year = parseInt(yearMatch[1], 10);
+          if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
+            filteredItem[field] = item[field];
+          }
+        }
+      }
+      return filteredItem;
+    });
+  }
+
+  // Combine total + other systems when includeTotal is true
+  if (includeTotal) {
+    const totalObj = mapped.find(item =>
+      item.systemNames.some(name =>
+        name.toLowerCase().includes('total des taux de change')
+      )
+    );
+
+    const otherNames = normalized.filter(name => name !== 'total');
+    const data = otherNames.length === 0
+      ? mapped.filter(item =>
+          !item.systemNames.some(name => name.toLowerCase().includes('total des taux de change'))
+        )
+      : mapped.filter(item =>
+          item.systemNames.some(name => otherNames.includes(name.toLowerCase()))
+        );
+
+    return { total: totalObj || null, data };
+  }
+
+  return mapped;
+}
+
 
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
-  async frenchGetVolumeDataWithCountryCode(systemNames: string[], startYear?: number, endYear?: number) {
-    if (!Array.isArray(systemNames) || systemNames.length === 0) {
-      throw new BadRequestException('systemNames doit être un tableau non vide.');
-    }
-    if (startYear && endYear && startYear > endYear) {
-      throw new BadRequestException('startYear ne peut pas être supérieur à endYear.');
-    }
-
-    const includeTotal = systemNames.some(name => name.toLowerCase() === "total");
-    const results = includeTotal
-      ? await this.frenchvolumeDataModel.find({}).lean()
-      : await this.frenchvolumeDataModel.find({ systemName: { $in: [...systemNames, "total des taux de change"] } }).lean();
-
-    let mapped: any[] = [];
-    if (systemNames.length === 1 && systemNames[0].toLowerCase() === "total") {
-      const grouped = results.reduce((acc, item) => {
-        const key = item.geographicReach || 'UNKNOWN';
-        if (!acc[key]) {
-          acc[key] = { geographicReach: key, countryCode: this.getCountryCodeFrench(key), systemNames: [] };
-          const range = startYear && endYear ? [startYear, endYear] : [2020, 2024];
-          for (let y = range[0]; y <= range[1]; y++) acc[key][`volumes${y}`] = 0;
-        }
-        acc[key].systemNames.push(item.systemName);
-        const fields = Object.keys(item).filter(k => k.startsWith('volumes'));
-        for (const field of fields) {
-          const yearMatch = field.match(/(\d{4})$/);
-          if (yearMatch) {
-            const year = parseInt(yearMatch[1], 10);
-            if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
-              const val = item[field];
-              const num = Number(val);
-              if (!isNaN(num)) acc[key][field] = (acc[key][field] || 0) + num;
-            }
-          }
-        }
-        return acc;
-      }, {} as Record<string, any>);
-      mapped = Object.values(grouped);
-    } else {
-      mapped = results.map(item => {
-        const filteredItem: any = {
-          geographicReach: item.geographicReach,
-          countryCode: this.getCountryCodeFrench(item.geographicReach),
-          systemNames: [item.systemName],
-        };
-        const fields = Object.keys(item).filter(k => k.startsWith('volumes'));
-        for (const field of fields) {
-          const yearMatch = field.match(/(\d{4})$/);
-          if (yearMatch) {
-            const year = parseInt(yearMatch[1], 10);
-            if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
-              filteredItem[field] = item[field];
-            }
-          }
-        }
-        return filteredItem;
-      });
-    }
-
-    if (includeTotal) {
-      const totalObj = mapped.find(item =>
-        item.systemNames.some(name => name.toLowerCase() === 'total des taux de change'),
-      );
-      const otherNames = systemNames
-        .filter(name => name.toLowerCase() !== 'total des taux de change')
-        .map(name => name.toLowerCase());
-      let data;
-      if (otherNames.length === 0) {
-        data = mapped.filter(
-          item => !item.systemNames.some(name => name.toLowerCase() === 'total des taux de change'),
-        );
-      } else {
-        data = mapped.filter(item =>
-          item.systemNames.some(name => otherNames.includes(name.toLowerCase())),
-        );
-      }
-      return { total: totalObj || null, data };
-    }
-    return mapped;
+async frenchGetVolumeDataWithCountryCode(systemNames: string[], startYear?: number, endYear?: number) {
+  if (!Array.isArray(systemNames) || systemNames.length === 0) {
+    throw new BadRequestException('systemNames doit être un tableau non vide.');
   }
+  if (startYear && endYear && startYear > endYear) {
+    throw new BadRequestException('startYear ne peut pas être supérieur à endYear.');
+  }
+
+  const normalized = systemNames.map(n => n.trim().toLowerCase());
+  const includeTotal = normalized.includes("total");
+
+  const results = includeTotal
+    ? await this.frenchvolumeDataModel.find({}).lean()
+    : await this.frenchvolumeDataModel.find({
+        systemName: { $in: [...systemNames, "Total des taux de change", "total des taux de change"] },
+      }).lean();
+
+  let mapped: any[] = [];
+
+  if (systemNames.length === 1 && normalized[0] === "total") {
+    const grouped = results.reduce((acc, item) => {
+      const key = item.geographicReach || 'UNKNOWN';
+      if (!acc[key]) {
+        acc[key] = {
+          geographicReach: key,
+          countryCode: this.getCountryCodeFrench(key),
+          systemNames: [],
+        };
+        const range = startYear && endYear ? [startYear, endYear] : [2020, 2024];
+        for (let y = range[0]; y <= range[1]; y++) acc[key][`volumes${y}`] = 0;
+      }
+
+      acc[key].systemNames.push(item.systemName);
+      const fields = Object.keys(item).filter(k => k.startsWith('volumes'));
+      for (const field of fields) {
+        const yearMatch = field.match(/(\d{4})$/);
+        if (yearMatch) {
+          const year = parseInt(yearMatch[1], 10);
+          if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
+            const val = item[field];
+            const num = Number(val);
+            if (!isNaN(num)) acc[key][field] = (acc[key][field] || 0) + num;
+          }
+        }
+      }
+      return acc;
+    }, {} as Record<string, any>);
+
+    mapped = Object.values(grouped);
+  } else {
+    mapped = results.map(item => {
+      const filteredItem: any = {
+        geographicReach: item.geographicReach,
+        countryCode: this.getCountryCodeFrench(item.geographicReach),
+        systemNames: [item.systemName],
+      };
+      const fields = Object.keys(item).filter(k => k.startsWith('volumes'));
+      for (const field of fields) {
+        const yearMatch = field.match(/(\d{4})$/);
+        if (yearMatch) {
+          const year = parseInt(yearMatch[1], 10);
+          if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
+            filteredItem[field] = item[field];
+          }
+        }
+      }
+      return filteredItem;
+    });
+  }
+
+  if (includeTotal) {
+    const totalObj = mapped.find(item =>
+      item.systemNames.some(name =>
+        name.toLowerCase().includes('total des taux de change')
+      )
+    );
+
+    const otherNames = normalized.filter(name => name !== 'total');
+    const data = otherNames.length === 0
+      ? mapped.filter(
+          item => !item.systemNames.some(name =>
+            name.toLowerCase().includes('total des taux de change')
+          )
+        )
+      : mapped.filter(item =>
+          item.systemNames.some(name => otherNames.includes(name.toLowerCase()))
+        );
+
+    return { total: totalObj || null, data };
+  }
+
+  return mapped;
+}
+
 
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
