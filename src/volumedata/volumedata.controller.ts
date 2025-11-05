@@ -21,4 +21,11 @@ export class VolumedataController {
     async syncFromGoogleSheet() {
       return this.volumeDataService.syncFromGoogleSheet();
     }
+
+          @Post('freanch/sync')
+    @ApiOperation({ summary: 'Manually sync General Data from Google Sheets' })
+    @ApiResponse({ status: 200, description: 'Sync started' })
+    async FrenchsyncFromGoogleSheet() {
+      return this.volumeDataService.FrenchsyncFromGoogleSheet();
+    }
 }

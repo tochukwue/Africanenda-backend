@@ -24,6 +24,9 @@ export class ValuedataService {
     return this.googleSheetService.fetchAndSyncValueData();
   }
 
+    async FrenchsyncFromGoogleSheet() {
+    return this.googleSheetService.FrenchfetchAndSyncValueData();
+  }
   // 📂 Get all value data
   async findAll(): Promise<ValueData[]> {
     return this.valueDataModel.find().exec();

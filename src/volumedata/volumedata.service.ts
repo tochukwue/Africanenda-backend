@@ -23,6 +23,10 @@ export class VolumedataService {
     return this.googleSheetService.fetchAndSyncVolumeData();
   }
 
+    async FrenchsyncFromGoogleSheet() {
+    return this.googleSheetService.FrenchfetchAndSyncVolumeData();
+  }
+
   async findAll(): Promise<VolumeData[]> {
     return this.volumeDataModel.find().exec();
   }

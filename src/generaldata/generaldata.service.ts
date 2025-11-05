@@ -24,6 +24,9 @@ export class GeneraldataService {
     return this.googleSheetService.fetchAndSyncGeneralData();
   }
 
+    async FrenchfetchAndSyncGeneralData() {
+    return this.googleSheetService.FrenchfetchAndSyncGeneralData();
+  }
   
   // ✅ New function to fetch all records
   async findAll(): Promise<GeneralData[]> {

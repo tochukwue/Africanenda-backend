@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
 @Schema({ timestamps: true })
-export class GeneralData {
+export class FrenchGeneralData {
     @Prop() systemName: string;
     @Prop() geographicReach: string;
     @Prop() geographicRegion: string;
@@ -67,5 +67,5 @@ export class GeneralData {
     @Prop() transactionValidationEnabled: string;
 }
 
-export type GeneralDataDocument = GeneralData & Document;
-export const GeneralDataSchema = SchemaFactory.createForClass(GeneralData);
+export type FrenchGeneralDataDocument = FrenchGeneralData & Document;
+export const FrenchGeneralDataSchema = SchemaFactory.createForClass(FrenchGeneralData);

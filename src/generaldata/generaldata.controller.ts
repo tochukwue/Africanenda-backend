@@ -24,4 +24,11 @@ export class GeneraldataController {
   async syncFromGoogleSheet() {
     return this.generaldataService.syncFromGoogleSheet();
   }
+
+     @Post('french/sync')
+  @ApiOperation({ summary: 'Manually sync General Data from Google Sheets' })
+  @ApiResponse({ status: 200, description: 'Sync started' })
+  async FrenchfetchAndSyncGeneralData() {
+    return this.generaldataService.FrenchfetchAndSyncGeneralData();
+  }
 }

@@ -11,6 +11,10 @@ import { VolumeData, VolumeDataDocument } from 'src/volumedata/schema/volumedatu
 import { GeneralData, GeneralDataDocument } from 'src/generaldata/schema/generaldatum.schema';
 import countryCodeLookup from 'country-code-lookup'; // npm install country-code-lookup
 import * as Fuse from 'fuse.js';
+import { FrenchIpsActivity, FrenchIpsActivityDocument } from './schema/fripslist.schema';
+import { FrenchGeneralData, FrenchGeneralDataDocument } from 'src/generaldata/schema/frgeneraldatum.schema';
+import { FrenchValueData, FrenchValueDataDocument } from 'src/valuedata/schema/frvaluedatum.schema';
+import { FrenchVolumeData, FrenchVolumeDataDocument } from 'src/volumedata/schema/frvolumedatum.schema';
 
 @Injectable()
 export class IpslistService {
@@ -24,6 +28,16 @@ export class IpslistService {
     private readonly volumeDataModel: Model<VolumeDataDocument>,
     @InjectModel(GeneralData.name)
     private readonly generalDataModel: Model<GeneralDataDocument>,
+
+    @InjectModel(FrenchIpsActivity.name) private readonly frenchipsActivityModel: Model<FrenchIpsActivityDocument>,
+
+    @InjectModel(FrenchGeneralData.name) private frenchgeneralDataModel: Model<FrenchGeneralDataDocument>,
+
+    @InjectModel(FrenchValueData.name)
+    private readonly frenchvalueDataModel: Model<FrenchValueDataDocument>,
+
+    @InjectModel(FrenchVolumeData.name)
+    private readonly frenchvolumeDataModel: Model<FrenchVolumeDataDocument>,
   ) { }
 
   async searchSystemNames(term: string): Promise<{ systemName: string }[]> {
@@ -118,17 +132,6 @@ export class IpslistService {
       return ordered;
     });
   }
-
-  // async getByGeographicReach(geographicReach: string): Promise<GeneralData[]> {
-  //   if (!geographicReach) {
-  //     throw new BadRequestException('geographicReach is required.');
-  //   }
-
-  //   return this.generalDataModel
-  //     .find({ geographicReach: { $regex: new RegExp(`^${geographicReach}$`, 'i') } })
-  //     .lean()
-  //     .exec();
-  // }
 
   async getValueDataWithCountryCode(systemNames: string[], startYear?: number, endYear?: number) {
     if (!Array.isArray(systemNames) || systemNames.length === 0) {
@@ -445,6 +448,454 @@ export class IpslistService {
       })),
     }));
   }
+
+
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+ /** 🔍 Search for System Names */
+  async frenchSearchSystemNames(term: string): Promise<{ systemName: string }[]> {
+    if (!term || term.trim().length < 2) {
+      throw new BadRequestException('Le terme de recherche doit comporter au moins 2 caractères.');
+    }
+    const regex = new RegExp(term, 'i');
+    const results = await this.frenchgeneralDataModel
+      .find({ systemName: { $regex: regex } }, { systemName: 1, geographicReach: 1, _id: 0 })
+      .lean()
+      .exec();
+    return results;
+  }
+
+  /** 📊 Get GeneralData list by geographicReach */
+  async frenchGetByGeographicReach(geographicReach: string): Promise<any[]> {
+    if (!geographicReach) {
+      throw new BadRequestException('geographicReach est requis.');
+    }
+    const records = await this.frenchgeneralDataModel
+      .find({ geographicReach: { $regex: new RegExp(`^${geographicReach}$`, 'i') } })
+      .lean()
+      .exec();
+
+    const fieldOrder = [
+      'systemName',
+      'geographicReach',
+      'gender',
+      'geographicRegion',
+      'coverage',
+      'yearOfEstablishment',
+      'ipsType',
+      'interoperabilityArrangement',
+      'governanceTypology',
+      'ownershipModel',
+      'systemOwner',
+      'overseer',
+      'systemGovernance',
+      'operator',
+      'settlementAgent',
+      'numberOfUniqueIpsEndUsers',
+      'totalNumberOfParticipants2025',
+      'numberOfDirectParticipantsCommercialBanks',
+      'numberOfDirectParticipantsEMoneyIssuers',
+      'numberOfDirectParticipantsMFIs',
+      'numberOfDirectParticipantsOther',
+      'numberOfDirectParticipantsPostOffice',
+      'indirectParticipantsType',
+      'numberOfIndirectParticipants',
+      'supportedUseCases',
+      'supportedInstruments',
+      'primaryLocalChannel',
+      'supportedChannels',
+      'qrCodeEnabledType',
+      'messagingStandard',
+      'proxyId',
+      'otherProxyIdType',
+      'businessModel',
+      'pricingStructure',
+      'schemeRulesPublic',
+      'additionalRecourseRequirements',
+      'disputeResolutionMechanism',
+      'apiUseFunction',
+      'startupFundingSource',
+      'participationInDecisionMaking',
+      'mechanismForDecisionMaking',
+      'abilityToBecomeDirectParticipants',
+      'entitiesThatCannotParticipate',
+      'nonBankingFIsSponsorship',
+      'minValueForTransactions',
+      'corporateStructure',
+      'otherCorporateStructure',
+      'pullRequestToPayEnabled',
+      'thirdPartyConnectionsEnabled',
+      'realTimePaymentConfirmation',
+      'transactionValidationEnabled',
+      'inclusivityRanking',
+    ];
+
+    return records.map(record => {
+      const ordered: Record<string, any> = {};
+      fieldOrder.forEach(field => {
+        ordered[field] = record[field] ?? '';
+      });
+      return ordered;
+    });
+  }
+
+  /** 💶 Get Value Data with Country Code */
+  async frenchGetValueDataWithCountryCode(systemNames: string[], startYear?: number, endYear?: number) {
+    if (!Array.isArray(systemNames) || systemNames.length === 0) {
+      throw new BadRequestException('systemNames doit être un tableau non vide.');
+    }
+    if (startYear && endYear && startYear > endYear) {
+      throw new BadRequestException('startYear ne peut pas être supérieur à endYear.');
+    }
+
+    const includeTotal = systemNames.some(name => name.toLowerCase() === "total");
+    const results = includeTotal
+      ? await this.frenchvalueDataModel.find({}).lean()
+      : await this.frenchvalueDataModel.find({ systemName: { $in: [...systemNames,"total des taux de change"] } }).lean();
+
+    let mapped: any[] = [];
+    if (systemNames.length === 1 && systemNames[0].toLowerCase() === "total des taux de change") {
+      const grouped = results.reduce((acc, item) => {
+        const key = item.geographicReach || 'UNKNOWN';
+        if (!acc[key]) {
+          acc[key] = { geographicReach: key, countryCode: this.getCountryCodeFrench(key), systemNames: [] };
+          const range = startYear && endYear ? [startYear, endYear] : [2020, 2024];
+          for (let y = range[0]; y <= range[1]; y++) acc[key][`values${y}`] = 0;
+        }
+        acc[key].systemNames.push(item.systemName);
+        const fields = Object.keys(item).filter(k => k.startsWith('values'));
+        for (const field of fields) {
+          const yearMatch = field.match(/(\d{4})$/);
+          if (yearMatch) {
+            const year = parseInt(yearMatch[1], 10);
+            if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
+              const val = item[field];
+              const num = Number(val);
+              if (!isNaN(num)) acc[key][field] = (acc[key][field] || 0) + num;
+            }
+          }
+        }
+        return acc;
+      }, {} as Record<string, any>);
+      mapped = Object.values(grouped);
+    } else {
+      mapped = results.map(item => {
+        const filteredItem: any = {
+          geographicReach: item.geographicReach,
+          countryCode: this.getCountryCodeFrench(item.geographicReach),
+          systemNames: [item.systemName],
+        };
+        const fields = Object.keys(item).filter(k => k.startsWith('values'));
+        for (const field of fields) {
+          const yearMatch = field.match(/(\d{4})$/);
+          if (yearMatch) {
+            const year = parseInt(yearMatch[1], 10);
+            if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
+              filteredItem[field] = item[field];
+            }
+          }
+        }
+        return filteredItem;
+      });
+    }
+
+    if (includeTotal) {
+      const totalObj = mapped.find(item =>
+        item.systemNames.some(name => name.toLowerCase() === 'total des taux de change'),
+      );
+      const otherNames = systemNames
+        .filter(name => name.toLowerCase() !== 'total des taux de change')
+        .map(name => name.toLowerCase());
+      let data;
+      if (otherNames.length === 0) {
+        data = mapped.filter(
+          item => !item.systemNames.some(name => name.toLowerCase() === 'total des taux de change'),
+        );
+      } else {
+        data = mapped.filter(item =>
+          item.systemNames.some(name => otherNames.includes(name.toLowerCase())),
+        );
+      }
+      return { total: totalObj || null, data };
+    }
+    return mapped;
+  }
+
+  /** 📦 Get Volume Data with Country Code */
+  async frenchGetVolumeDataWithCountryCode(systemNames: string[], startYear?: number, endYear?: number) {
+    if (!Array.isArray(systemNames) || systemNames.length === 0) {
+      throw new BadRequestException('systemNames doit être un tableau non vide.');
+    }
+    if (startYear && endYear && startYear > endYear) {
+      throw new BadRequestException('startYear ne peut pas être supérieur à endYear.');
+    }
+
+    const includeTotal = systemNames.some(name => name.toLowerCase() === "total");
+    const results = includeTotal
+      ? await this.frenchvolumeDataModel.find({}).lean()
+      : await this.frenchvolumeDataModel.find({ systemName: { $in: [...systemNames,"total des taux de change"] } }).lean();
+
+    let mapped: any[] = [];
+    if (systemNames.length === 1 && systemNames[0].toLowerCase() === "total des taux de change") {
+      const grouped = results.reduce((acc, item) => {
+        const key = item.geographicReach || 'UNKNOWN';
+        if (!acc[key]) {
+          acc[key] = { geographicReach: key, countryCode: this.getCountryCodeFrench(key), systemNames: [] };
+          const range = startYear && endYear ? [startYear, endYear] : [2020, 2024];
+          for (let y = range[0]; y <= range[1]; y++) acc[key][`volumes${y}`] = 0;
+        }
+        acc[key].systemNames.push(item.systemName);
+        const fields = Object.keys(item).filter(k => k.startsWith('volumes'));
+        for (const field of fields) {
+          const yearMatch = field.match(/(\d{4})$/);
+          if (yearMatch) {
+            const year = parseInt(yearMatch[1], 10);
+            if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
+              const val = item[field];
+              const num = Number(val);
+              if (!isNaN(num)) acc[key][field] = (acc[key][field] || 0) + num;
+            }
+          }
+        }
+        return acc;
+      }, {} as Record<string, any>);
+      mapped = Object.values(grouped);
+    } else {
+      mapped = results.map(item => {
+        const filteredItem: any = {
+          geographicReach: item.geographicReach,
+          countryCode: this.getCountryCodeFrench(item.geographicReach),
+          systemNames: [item.systemName],
+        };
+        const fields = Object.keys(item).filter(k => k.startsWith('volumes'));
+        for (const field of fields) {
+          const yearMatch = field.match(/(\d{4})$/);
+          if (yearMatch) {
+            const year = parseInt(yearMatch[1], 10);
+            if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
+              filteredItem[field] = item[field];
+            }
+          }
+        }
+        return filteredItem;
+      });
+    }
+
+    if (includeTotal) {
+      const totalObj = mapped.find(item =>
+        item.systemNames.some(name => name.toLowerCase() === 'total des taux de change'),
+      );
+      const otherNames = systemNames
+        .filter(name => name.toLowerCase() !== 'total des taux de change')
+        .map(name => name.toLowerCase());
+      let data;
+      if (otherNames.length === 0) {
+        data = mapped.filter(
+          item => !item.systemNames.some(name => name.toLowerCase() === 'total des taux de change'),
+        );
+      } else {
+        data = mapped.filter(item =>
+          item.systemNames.some(name => otherNames.includes(name.toLowerCase())),
+        );
+      }
+      return { total: totalObj || null, data };
+    }
+    return mapped;
+  }
+
+  /** 📈 Get all value data except total */
+  async frenchGetAllValueDataExceptTotal() {
+    const records = await this.frenchvalueDataModel.find({ systemName: { $ne: 'Total des taux de change' } }).lean();
+    return records.map(record => ({
+      ...record,
+      countryCode: this.getCountryCodeFrench(record.geographicReach),
+    }));
+  }
+
+  /** 💰 Get value data for total */
+  async frenchGetValueDataTotal() {
+    const record = await this.frenchvalueDataModel.findOne({ systemName: 'Total des taux de change' }).lean();
+    return record
+      ? { ...record, countryCode: this.getCountryCodeFrench(record.geographicReach) }
+      : null;
+  }
+
+  /** 📊 Get all volume data except total */
+  async frenchGetAllVolumeDataExceptTotal() {
+    const records = await this.frenchvolumeDataModel.find({ systemName: { $ne: 'Total des taux de change' } }).lean();
+    return records.map(record => ({
+      ...record,
+      countryCode: this.getCountryCodeFrench(record.geographicReach),
+    }));
+  }
+
+  /** 📦 Get volume data total */
+  async frenchGetVolumeDataTotal() {
+    const record = await this.frenchvolumeDataModel.findOne({ systemName: 'Total des taux de change' }).lean();
+    return record
+      ? { ...record, countryCode: this.getCountryCodeFrench(record.geographicReach) }
+      : null;
+  }
+
+  /** 🌍 Group General Data by Region and Country */
+  async frenchGetGeneralDataGroupedByRegionAndCountry() {
+    const records = await this.frenchgeneralDataModel.find().lean();
+    const groupedByRegion = records.reduce((acc, record) => {
+      const region = record.geographicRegion?.trim();
+      const country = record.geographicReach?.trim();
+      if (!region || !country) return acc;
+      if (!acc[region]) acc[region] = {};
+      if (!acc[region][country]) acc[region][country] = [];
+      acc[region][country].push({
+        systemName: record.systemName?.trim(),
+        geographicReach: country,
+        geographicRegion: region,
+        countryCode: this.getCountryCodeFrench(country),
+      });
+      return acc;
+    }, {} as Record<string, Record<string, any[]>>);
+
+    return Object.entries(groupedByRegion).map(([region, countries]) => ({
+      region,
+      totalCountries: Object.keys(countries).length,
+      countries: Object.entries(countries).map(([country, data]) => ({
+        country,
+        countryCode: this.getCountryCodeFrench(country),
+        totalSystems: data.length,
+        data,
+      })),
+    }));
+  }
+
+private getCountryCodeFrench(nomPays?: string) {
+  if (!nomPays) return null;
+
+  const nomNettoye = nomPays.trim();
+
+  // Mapping manuel des pays africains (noms français et anglais)
+  const codePaysMap: { [key: string]: string } = {
+    'Algérie': 'DZ',
+    'Angola': 'AO',
+    'Bénin': 'BJ',
+    'Botswana': 'BW',
+    'Burkina Faso': 'BF',
+    'Burundi': 'BI',
+    'Cabo Verde': 'CV',
+    'Cap-Vert': 'CV',
+    'Cameroun': 'CM',
+    'République centrafricaine': 'CF',
+    'Tchad': 'TD',
+    'Comores': 'KM',
+    'Congo': 'CG',
+    'République du Congo': 'CG',
+    'République démocratique du Congo': 'CD',
+    'Congo, Rép. dém.': 'CD',
+    'Congo, Rép. dém. Démocratique': 'CD',
+    "Congo, Dem. Rep.": 'CD',
+    "Dem. Rep. ": 'CD',
+    "Dem Rep.": 'CD',
+    'Côte d\'Ivoire': 'CI',
+    'Cote d\'Ivoire': 'CI',
+    'Djibouti': 'DJ',
+    'Égypte': 'EG',
+    'Egypt': 'EG',
+    'Guinée équatoriale': 'GQ',
+    'Érythrée': 'ER',
+    'Eswatini': 'SZ',
+    'Swaziland': 'SZ',
+    'Éthiopie': 'ET',
+    'Gabon': 'GA',
+    'Gambie': 'GM',
+    'Ghana': 'GH',
+    'Guinée': 'GN',
+    'Guinée-Bissau': 'GW',
+    'Kenya': 'KE',
+    'Lesotho': 'LS',
+    'Liberia': 'LR',
+    'Libye': 'LY',
+    'Madagascar': 'MG',
+    'Malawi': 'MW',
+    'Mali': 'ML',
+    'Mauritanie': 'MR',
+    'Maurice': 'MU',
+    'Maroc': 'MA',
+    'Mozambique': 'MZ',
+    'Namibie': 'NA',
+    'Niger': 'NE',
+    'Nigeria': 'NG',
+    'Rwanda': 'RW',
+    'São Tomé et Príncipe': 'ST',
+    'Sao Tome and Principe': 'ST',
+    'Sénégal': 'SN',
+    'Seychelles': 'SC',
+    'Sierra Leone': 'SL',
+    'Somalie': 'SO',
+    'Somaliland': 'SO',
+    'Afrique du Sud': 'ZA',
+    'Soudan du Sud': 'SS',
+    'Soudan': 'SD',
+    'Tanzanie': 'TZ',
+    'République-Unie de Tanzanie': 'TZ',
+    'Togo': 'TG',
+    'Tunisie': 'TN',
+    'Ouganda': 'UG',
+    'Zambie': 'ZM',
+    'Zimbabwe': 'ZW',
+  };
+
+  // Recherche directe dans le mapping
+  if (codePaysMap[nomNettoye]) {
+    return codePaysMap[nomNettoye];
+  }
+
+  // Recherche floue si non trouvé
+  const resultatFlou = this.frenchAfricanCountriesFuse.search(nomNettoye);
+  if (resultatFlou.length > 0 && resultatFlou[0].score <= 0.3) {
+    const paysCorrespondant = resultatFlou[0].item;
+    if (codePaysMap[paysCorrespondant]) {
+      return codePaysMap[paysCorrespondant];
+    }
+  }
+
+  // Recherche via la librairie en dernier recours
+  try {
+    const lookup = countryCodeLookup.byCountry(nomNettoye);
+    if (lookup?.iso2) return lookup.iso2;
+  } catch {}
+
+  return null;
+}
+
+private frenchSplitCountries(geoPays?: string) {
+  if (!geoPays) return [];
+  return geoPays.split(',').map((c) => c.trim()).filter(Boolean);
+}
+
+private frenchAfricanCountries = [
+  'Afrique du Sud', 'Algérie', 'Angola', 'Bénin', 'Botswana', 'Burkina Faso',
+  'Burundi', 'Cabo Verde', 'Cameroun', 'République centrafricaine', 'Tchad',
+  'Comores', 'Congo', 'République démocratique du Congo', 'Côte d\'Ivoire',
+  'Djibouti', 'Égypte', 'Guinée équatoriale', 'Érythrée', 'Eswatini',
+  'Éthiopie', 'Gabon', 'Gambie', 'Ghana', 'Guinée', 'Guinée-Bissau',
+  'Kenya', 'Lesotho', 'Liberia', 'Libye', 'Madagascar', 'Malawi', 'Mali',
+  'Mauritanie', 'Maurice', 'Maroc', 'Mozambique', 'Namibie', 'Niger',
+  'Nigeria', 'Rwanda', 'São Tomé et Príncipe', 'Sénégal', 'Seychelles',
+  'Sierra Leone', 'Somalie', 'Afrique du Sud', 'Soudan du Sud', 'Soudan',
+  'Tanzanie', 'Togo', 'Tunisie', 'Ouganda', 'Zambie', 'Zimbabwe'
+];
+
+private frenchAfricanCountriesFuse = new (Fuse as any)(this.frenchAfricanCountries, {
+  includeScore: true,
+  threshold: 0.3
+});
+
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
+  //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
 
 
 
@@ -833,103 +1284,6 @@ export class IpslistService {
           enrichedData = nestedData.flat(); // ✅ flatten into a single array
           break;
         }
-
-        // case 'LIVE: REGIONAL IPS':
-        // case 'REGIONAL: IN DEVELOPMENT':
-        // case 'IN PILOT PHASE': {
-        //   let filteredIpsList = ipsList;
-
-        //   // ✅ Apply filters same as Domestic
-        //   if (filters && Object.keys(filters).length > 0) {
-        //     const filterQueries: any[] = [];
-        //     for (const [field, values] of Object.entries(filters)) {
-        //       if (!Array.isArray(values)) continue;
-
-        //       if (field === 'governanceTypology') {
-        //         const orConditions: any[] = [];
-        //         for (const value of values) {
-        //           const cleanedValue = String(value).trim();
-        //           if (cleanedValue === 'Scheme rules publicly available') {
-        //             orConditions.push({ schemeRulesPublic: { $regex: '^yes$', $options: 'i' } });
-        //           } else if (cleanedValue === 'Indirect Participation') {
-        //             orConditions.push({ nonBankingFIsSponsorship: { $regex: '^yes$', $options: 'i' } });
-        //           } else {
-        //             const normalizedValue =
-        //               cleanedValue === 'Public Private Partnership (PPP)'
-        //                 ? 'Public Private Partnership'
-        //                 : cleanedValue;
-        //             orConditions.push({ governanceTypology: { $regex: normalizedValue, $options: 'i' } });
-        //           }
-        //         }
-        //         if (orConditions.length > 0) filterQueries.push({ $or: orConditions });
-        //         continue;
-        //       }
-
-        //       if (field === 'IPSFunctionality') {
-        //         const orConditions: any[] = [];
-        //         for (const val of values) {
-        //           const normalized = String(val).trim().toLowerCase();
-        //           if (['qr code', 'ussd', 'app', 'browser'].includes(normalized)) {
-        //             orConditions.push({ supportedChannels: { $regex: normalized, $options: 'i' } });
-        //           }
-        //           if (normalized === 'apiusefunction') {
-        //             orConditions.push({ apiUseFunction: { $regex: '^yes$', $options: 'i' } });
-        //           }
-        //           if (normalized === 'thirdpartyconnectionsenabled') {
-        //             orConditions.push({ thirdPartyConnectionsEnabled: { $regex: '^yes$', $options: 'i' } });
-        //           }
-        //           if (normalized === 'realtimepaymentconfirmation') {
-        //             orConditions.push({ realTimePaymentConfirmation: { $regex: '^yes$', $options: 'i' } });
-        //           }
-        //           if (normalized === 'pullrequesttopayenabled') {
-        //             orConditions.push({ pullRequestToPayEnabled: { $regex: '^yes$', $options: 'i' } });
-        //           }
-        //         }
-        //         if (orConditions.length > 0) filterQueries.push({ $or: orConditions });
-        //       } else {
-        //         const regexConditions = values.map((v) => ({
-        //           [field]: { $regex: String(v).trim(), $options: 'i' },
-        //         }));
-        //         filterQueries.push({ $or: regexConditions });
-        //       }
-        //     }
-        //     const query: any = filterQueries.length > 0 ? { $and: filterQueries } : {};
-        //     const matchingGeneral = await this.generalDataModel.find(query).select('systemName').lean();
-        //     const matchingNames = new Set(matchingGeneral.map((g) => g.systemName));
-        //     filteredIpsList = ipsList.filter((ips) => matchingNames.has(ips.ipsName));
-        //   }
-
-        //   // ✅ Apply ipsNameFilter
-        //   if (ipsNameFilter) {
-        //     const filterNames = Array.isArray(ipsNameFilter)
-        //       ? ipsNameFilter.map((v: string) => String(v).trim().toLowerCase())
-        //       : [String(ipsNameFilter).trim().toLowerCase()];
-
-        //     filteredIpsList = filteredIpsList.filter((ips) =>
-        //       ips.ipsName && filterNames.includes(String(ips.ipsName).trim().toLowerCase())
-        //     );
-        //   }
-
-        //   // ✅ Enrich with inclusivityRanking as well
-        //   enrichedData = await Promise.all(
-        //     filteredIpsList.flatMap(async (ips) => {
-        //       const general = await this.generalDataModel.findOne({ systemName: ips.ipsName }).lean();
-        //       const countries = this.splitCountries(ips.geographyCountries);
-        //       return countries.map((country) => ({
-        //         category,
-        //         country: String(country).trim(),
-        //         countryCode: this.getCountryCode(String(country).trim()),
-        //         ipsName: String(ips.ipsName || '').trim(),
-        //         inclusivityRanking: general?.inclusivityRanking || null, // ✅ ADDED
-        //         ...(category !== 'LIVE: REGIONAL IPS' && {
-        //           region: String(ips.region || '').trim() || null,
-        //         }),
-        //       }));
-        //     })
-        //   );
-        //   break;
-        // }
-
         // ✅ Countries with no regional IPS activity
         case 'Countries with no regional IPS activity':
           enrichedData = ipsList.map((ips) => ({
@@ -957,27 +1311,7 @@ export class IpslistService {
 
 
 
-  private splitCountries(geoCountries?: string) {
-    if (!geoCountries) return [];
-    return geoCountries.split(',').map((c) => c.trim()).filter(Boolean);
-  }
 
-  private africanCountries = [
-    'Algeria', 'Angola', 'Benin', 'Botswana', 'Burkina Faso', 'Burundi',
-    'Cabo Verde', 'Cameroon', 'Central African Republic', 'Chad', 'Comoros',
-    'Congo', 'Congo, The Democratic Republic of the', 'Côte d\'Ivoire', 'Djibouti',
-    'Egypt', 'Equatorial Guinea', 'Eritrea', 'Eswatini', 'Ethiopia', 'Gabon',
-    'Gambia', 'Ghana', 'Guinea', 'Guinea-Bissau', 'Kenya', 'Lesotho', 'Liberia',
-    'Libya', 'Madagascar', 'Malawi', 'Mali', 'Mauritania', 'Mauritius', 'Morocco',
-    'Mozambique', 'Namibia', 'Niger', 'Nigeria', 'Rwanda', 'Sao Tome and Principe',
-    'Senegal', 'Seychelles', 'Sierra Leone', 'Somalia', 'South Africa', 'South Sudan',
-    'Sudan', 'Tanzania, United Republic of', 'Togo', 'Tunisia', 'Uganda', 'Zambia', 'Zimbabwe'
-  ];
-
-  private africanCountriesFuse = new (Fuse as any)(this.africanCountries, {
-    includeScore: true,
-    threshold: 0.3
-  });
 
   private getCountryCode(countryName?: string) {
     if (!countryName) return null;
@@ -1081,6 +1415,28 @@ export class IpslistService {
     return null;
   }
 
+    private splitCountries(geoCountries?: string) {
+    if (!geoCountries) return [];
+    return geoCountries.split(',').map((c) => c.trim()).filter(Boolean);
+  }
+
+  private africanCountries = [
+    'Algeria', 'Angola', 'Benin', 'Botswana', 'Burkina Faso', 'Burundi',
+    'Cabo Verde', 'Cameroon', 'Central African Republic', 'Chad', 'Comoros',
+    'Congo', 'Congo, The Democratic Republic of the', 'Côte d\'Ivoire', 'Djibouti',
+    'Egypt', 'Equatorial Guinea', 'Eritrea', 'Eswatini', 'Ethiopia', 'Gabon',
+    'Gambia', 'Ghana', 'Guinea', 'Guinea-Bissau', 'Kenya', 'Lesotho', 'Liberia',
+    'Libya', 'Madagascar', 'Malawi', 'Mali', 'Mauritania', 'Mauritius', 'Morocco',
+    'Mozambique', 'Namibia', 'Niger', 'Nigeria', 'Rwanda', 'Sao Tome and Principe',
+    'Senegal', 'Seychelles', 'Sierra Leone', 'Somalia', 'South Africa', 'South Sudan',
+    'Sudan', 'Tanzania, United Republic of', 'Togo', 'Tunisia', 'Uganda', 'Zambia', 'Zimbabwe'
+  ];
+
+  private africanCountriesFuse = new (Fuse as any)(this.africanCountries, {
+    includeScore: true,
+    threshold: 0.3
+  });
+
   async findAll(): Promise<IpsActivity[]> {
     const results = await this.ipsActivityModel
       .find()
@@ -1099,18 +1455,7 @@ export class IpslistService {
     });
   }
 
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
-  ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
+
   ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
   ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
   ///////////////////////////CRON JOB FOR SYNCYING IPS//////////////////////////////////////////
@@ -1306,1425 +1651,198 @@ export class IpslistService {
     }
   }
 
+
+  /////////////////////////////////////FRENCH SYNC///////////////////////////////////////
+  /////////////////////////////////////FRENCH SYNC///////////////////////////////////////
+  /////////////////////////////////////FRENCH SYNC///////////////////////////////////////
+  /////////////////////////////////////FRENCH SYNC///////////////////////////////////////
+  /////////////////////////////////////FRENCH SYNC///////////////////////////////////////
+  async FrenchfetchAndSyncIpsActivity() {
+    try {
+      const credentials = JSON.parse(
+        fs.readFileSync(
+          path.resolve(__dirname, '../../../config/authentication-411609-dcd87bcd1c0b.json'),
+          'utf8',
+        ),
+      );
+
+      const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+      });
+
+      const sheets = google.sheets({ version: 'v4', auth });
+      const spreadsheetId = '1igYm2eCWELDu8FAutbJmQtfaw1ZCDo_PtPQWZiaTdjE';
+      const range = 'Liste des IPS en service!B1:ZZ';
+
+      const cleanValue = (value: any): string =>
+        value == null || value === ''
+          ? ''
+          : String(value).trim().replace(/\s+/g, ' ');
+
+      const cleanObject = (obj: any): any => {
+        const cleaned: any = {};
+        Object.keys(obj).forEach((key) => (cleaned[key] = cleanValue(obj[key])));
+        return cleaned;
+      };
+
+      const res = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range,
+        valueRenderOption: 'UNFORMATTED_VALUE',
+        dateTimeRenderOption: 'FORMATTED_STRING',
+      });
+
+      const rawRows = res.data.values || [];
+      if (!rawRows.length) {
+        this.logger.warn('No IPS Activity data found.');
+        return;
+      }
+
+      const rows = rawRows.map((row) => row.map((cell) => cleanValue(cell)));
+      this.logger.log(`[FrenchfetchAndSyncIpsActivity] Fetched ${rows.length} rows`);
+
+      // 🧭 Define categories with row index ranges (maintained as requested)
+      const categoriesConfig = [
+        {
+          category: 'EN SERVICE : IPS NATIONAUX',
+          start: 2,
+          end: 34,
+          map: (row: string[]) => ({
+            country: row[1] || '', // Géographie
+            category: 'EN SERVICE : IPS NATIONAUX',
+            ipsName: row[0] || '', // Nom de l'IPS
+            geography: row[1] || '',
+            region: row[2] || '',
+            ipsType: row[3] || '',
+          }),
+        },
+        {
+          category: 'DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)',
+          start: 38,
+          end: 56,
+          map: (row: string[]) => ({
+            country: row[0] || '', // Géographie
+            category: 'DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)',
+            geography: row[0] || '',
+            status: row[1] || '',
+          }),
+        },
+        {
+          category: `Pays n'ayant pas d'activité IPS au niveau national`,
+          start: 58,
+          end: 67,
+          map: (row: string[]) => ({
+            country: row[0] || '',
+            category: `Pays n'ayant pas d'activité IPS au niveau national`,
+            geography: row[0] || '',
+          }),
+        },
+        {
+          category: 'EN SERVICE: IPS RÉGIONAL',
+          start: 69,
+          end: 72,
+          map: (row: string[]) => ({
+            country: row[1] || '', // Géographie (Pays)
+            category: 'EN SERVICE: IPS RÉGIONAL',
+            ipsName: row[0] || '',
+            geography: row[1] || '',
+            region: row[2] || '',
+            ipsType: row[3] || '',
+          }),
+        },
+        {
+          category: 'RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)',
+          start: 74,
+          end: 77,
+          map: (row: string[]) => ({
+            country: row[1] || '',
+            category: 'RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)',
+            ipsName: row[0] || '',
+            geography: row[1] || '',
+            region: row[2] || '',
+          }),
+        },
+        {
+          category: 'EN PHASE PILOTE',
+          start: 79,
+          end: 80,
+          map: (row: string[]) => ({
+            country: row[1] || '',
+            category: 'EN PHASE PILOTE',
+            ipsName: row[0] || '',
+            geography: row[1] || '',
+            region: row[2] || '',
+          }),
+        },
+        {
+          category: `Pays n'ayant pas d'activité régionale en matière d'IPS`,
+          start: 82,
+          end: 85,
+          map: (row: string[]) => ({
+            country: row[0] || '',
+            category: `Pays n'ayant pas d'activité régionale en matière d'IPS`,
+            geographyCountries: row[0] || '',
+          }),
+        },
+      ];
+
+      const ops = [];
+      let totalProcessed = 0;
+      let skippedEmpty = 0;
+
+      for (const config of categoriesConfig) {
+        this.logger.log(`[FrenchfetchAndSyncIpsActivity] Processing ${config.category} (rows ${config.start}-${config.end})`);
+
+        for (let i = config.start; i <= config.end; i++) {
+          const row = rows[i] || [];
+
+          // Skip empty rows
+          if (row.every((cell) => !cell || cell === '')) {
+            skippedEmpty++;
+            continue;
+          }
+
+          const doc = cleanObject(config.map(row));
+          if (!doc.country) doc.country = doc.geography || doc.geographyCountries || '';
+
+          const filter = cleanObject({
+            category: doc.category,
+            country: doc.country,
+            ipsName: doc.ipsName || undefined,
+          });
+
+          if (totalProcessed < 3) {
+            this.logger.debug(`[Sample ${totalProcessed + 1}] ${doc.category}: ${JSON.stringify(doc)}`);
+          }
+
+          ops.push({
+            updateOne: {
+              filter,
+              update: { $set: doc },
+              upsert: true,
+            },
+          });
+
+          totalProcessed++;
+        }
+      }
+
+      this.logger.log(`[FrenchfetchAndSyncIpsActivity] Processed ${totalProcessed} records. Skipped ${skippedEmpty} empty rows.`);
+
+      if (ops.length > 0) {
+        const bulkRes = await this.frenchipsActivityModel.bulkWrite(ops);
+        this.logger.log(`[FrenchfetchAndSyncIpsActivity] ✅ Sync complete.`);
+        this.logger.log(`Matched: ${bulkRes.matchedCount}, Modified: ${bulkRes.modifiedCount}, Upserted: ${bulkRes.upsertedCount}`);
+      } else {
+        this.logger.log(`[FrenchfetchAndSyncIpsActivity] No valid data to upsert.`);
+      }
+    } catch (error) {
+      this.logger.error('[FrenchfetchAndSyncIpsActivity] ❌ Error fetching IPS Activity data:', error.message);
+      if (error.stack) this.logger.error(error.stack);
+    }
+  }
+
+
 }
 
-  // inclusivityRanking
-  // async getByCategoriesEnriched(
-  //   categories: string[],
-  //   filters?: any,
-  //   ipsNameFilter?: string | string[]
-  // ) {
-  //   const validCategories = [
-  //     'LIVE: DOMESTIC IPS',
-  //     'DOMESTIC: IN DEVELOPMENT',
-  //     'Countries with no domestic IPS activity',
-  //     'LIVE: REGIONAL IPS',
-  //     'REGIONAL: IN DEVELOPMENT',
-  //     'IN PILOT PHASE',
-  //     'Countries with no regional IPS activity',
-  //   ];
-
-  //   // ✅ If no categories provided but filters exist, default to ['LIVE: DOMESTIC IPS']
-  //   if ((!categories || categories.length === 0) && filters && Object.keys(filters).length > 0) {
-  //     categories = ['LIVE: DOMESTIC IPS','LIVE: REGIONAL IPS'];
-  //   }
-
-  //   // ✅ Validate categories
-  //   if (!Array.isArray(categories) || categories.length === 0) {
-  //     throw new BadRequestException('Categories must be a non-empty array.');
-  //   }
-
-  //   categories.forEach((c) => {
-  //     if (!validCategories.includes(c)) {
-  //       throw new BadRequestException(`Invalid category: ${c}`);
-  //     }
-  //   });
-
-  //   // ✅ If filters exist, ensure 'LIVE: DOMESTIC IPS' is included
-  //   if (filters && Object.keys(filters).length > 0 && !categories.includes('LIVE: DOMESTIC IPS')) {
-  //     categories.push('LIVE: DOMESTIC IPS','LIVE: REGIONAL IPS');
-  //   }
-
-  //   let allResults = [];
-
-  //   for (const category of categories) {
-  //     let ipsList = await this.ipsActivityModel.find({ category }).lean().exec();
-  //     let enrichedData = [];
-
-  //     switch (category) {
-  //       // ✅ LIVE: DOMESTIC IPS with aggregation
-  //       case 'LIVE: DOMESTIC IPS': {
-  //         let filteredIpsList = ipsList;
-
-  //         // ✅ Apply GeneralData-based filters
-  //         if (filters && Object.keys(filters).length > 0) {
-  //           const filterQueries: any[] = [];
-
-  //           for (const [field, values] of Object.entries(filters)) {
-  //             if (!Array.isArray(values)) continue;
-
-  //             // ✅ Handle governanceTypology special cases
-  //             if (field === 'governanceTypology') {
-  //               const orConditions: any[] = [];
-
-  //               for (const value of values) {
-  //                 const cleanedValue = String(value).trim();
-
-  //                 // Handle specific governance typology filters
-  //                 if (cleanedValue === 'Scheme rules publicly available') {
-  //                   this.logger.log('🔍 Filtering for Scheme rules publicly available -> checking schemeRulesPublic = yes');
-  //                   orConditions.push({
-  //                     schemeRulesPublic: { $regex: '^yes$', $options: 'i' }
-  //                   });
-  //                 } else if (cleanedValue === 'Indirect Participation') {
-  //                   this.logger.log('🔍 Filtering for Indirect Participation -> checking nonBankingFIsSponsorship = yes');
-  //                   orConditions.push({
-  //                     nonBankingFIsSponsorship: { $regex: '^yes$', $options: 'i' }
-  //                   });
-  //                 } else {
-  //                   // Handle regular governance typology values
-  //                   const normalizedValue = cleanedValue === 'Public Private Partnership (PPP)'
-  //                     ? 'Public Private Partnership'
-  //                     : cleanedValue;
-
-  //                   orConditions.push({
-  //                     governanceTypology: { $regex: normalizedValue, $options: 'i' }
-  //                   });
-  //                 }
-  //               }
-
-  //               if (orConditions.length > 0) {
-  //                 filterQueries.push({ $or: orConditions });
-  //               }
-  //               continue;
-  //             }
-
-  //             if (field === 'IPSFunctionality') {
-  //               const orConditions: any[] = [];
-
-  //               for (const val of values) {
-  //                 const normalized = String(val).trim().toLowerCase();
-
-  //                 // ✅ Match supportedChannels for UI-based features
-  //                 if (['qr code', 'ussd', 'app', 'browser'].includes(normalized)) {
-  //                   orConditions.push({
-  //                     supportedChannels: { $regex: normalized, $options: 'i' },
-  //                   });
-  //                 }
-
-  //                 // ✅ Match Yes/yes for specific schema fields
-  //                 if (normalized === 'apiusefunction') {
-  //                   orConditions.push({ apiUseFunction: { $regex: '^yes$', $options: 'i' } });
-  //                 }
-  //                 if (normalized === 'thirdpartyconnectionsenabled') {
-  //                   orConditions.push({ thirdPartyConnectionsEnabled: { $regex: '^yes$', $options: 'i' } });
-  //                 }
-  //                 if (normalized === 'realtimepaymentconfirmation') {
-  //                   orConditions.push({ realTimePaymentConfirmation: { $regex: '^yes$', $options: 'i' } });
-  //                 }
-  //                 if (normalized === 'pullrequesttopayenabled') {
-  //                   orConditions.push({ pullRequestToPayEnabled: { $regex: '^yes$', $options: 'i' } });
-  //                 }
-  //               }
-
-  //               if (orConditions.length > 0) {
-  //                 filterQueries.push({ $or: orConditions });
-  //               }
-  //             } else if (field !== 'governanceTypology') {
-  //               // ✅ Default handling for other filters (excluding governanceTypology as it's handled above)
-  //               const regexConditions = values.map((v) => ({
-  //                 [field]: { $regex: String(v).trim(), $options: 'i' },
-  //               }));
-  //               filterQueries.push({ $or: regexConditions });
-  //             }
-  //           }
-
-  //           // ✅ Combine all filter conditions with $and
-  //           const query: any = filterQueries.length > 0 ? { $and: filterQueries } : {};
-
-  //           this.logger.log('🔍 Final MongoDB query for filters:', JSON.stringify(query, null, 2));
-
-  //           const matchingGeneral = await this.generalDataModel
-  //             .find(query)
-  //             .select('systemName')
-  //             .lean();
-
-  //           const matchingNames = new Set(matchingGeneral.map((g) => g.systemName));
-
-  //           this.logger.log(`🔍 Found ${matchingGeneral.length} matching systems from filters`);
-  //           this.logger.log(`🔍 Sample matching system names:`, Array.from(matchingNames).slice(0, 5));
-
-  //           filteredIpsList = ipsList.filter((ips) => matchingNames.has(ips.ipsName));
-
-  //           this.logger.log(`🔍 Filtered IPS list from ${ipsList.length} to ${filteredIpsList.length} items`);
-  //         }
-
-  //         // ✅ Helper to safely sum numeric fields
-  //         const sumFields = (obj: any, fields: string[]) => {
-  //           return fields.reduce((sum, field) => {
-  //             const val = obj?.[field];
-  //             if (val !== null && val !== undefined && val !== '') {
-  //               const num = Number(val);
-  //               if (!isNaN(num)) {
-  //                 sum += num;
-  //               }
-  //             }
-  //             return sum;
-  //           }, 0);
-  //         };
-
-  //         // ✅ Step 1: Fetch enriched data for each IPS
-  //         const rawEnrichedData = await Promise.all(
-  //           filteredIpsList.map(async (ips) => {
-  //             const volume = await this.volumeDataModel.findOne({ systemName: ips.ipsName }).lean();
-  //             const value = await this.valueDataModel.findOne({ systemName: ips.ipsName }).lean();
-  //             const general = await this.generalDataModel.findOne({ systemName: ips.ipsName }).lean();
-
-  //             const totalVolumes = sumFields(volume, ['volumes2024']);
-  //             const totalValues = sumFields(value, ['values2024']);
-
-  //             return {
-  //               geography: ips.geography,
-  //               countryCode: this.getCountryCode(ips.geography),
-  //               ipsName: ips.ipsName,
-  //               supportedUseCases: general?.supportedUseCases || null,
-  //               volumes2024: totalVolumes || 0,
-  //               values2024: totalValues || 0,
-  //             };
-  //           })
-  //         );
-
-  //         // ✅ Step 2: Group by geography and aggregate
-  //         const groupedData = rawEnrichedData.reduce((acc, item) => {
-  //           const existing = acc[item.geography];
-  //           if (existing) {
-  //             existing.volumes2024 += item.volumes2024;
-  //             existing.values2024 += item.values2024;
-  //             existing.ipsNames.push(item.ipsName);
-  //             if (item.supportedUseCases) {
-  //               existing.supportedUseCasesSet.add(item.supportedUseCases);
-  //             }
-  //           } else {
-  //             acc[item.geography] = {
-  //               category,
-  //               geography: item.geography,
-  //               countryCode: item.countryCode,
-  //               volumes2024: item.volumes2024,
-  //               values2024: item.values2024,
-  //               ipsNames: [item.ipsName],
-  //               supportedUseCasesSet: new Set(
-  //                 item.supportedUseCases ? [item.supportedUseCases] : []
-  //               ),
-  //             };
-  //           }
-  //           return acc;
-  //         }, {} as Record<string, any>);
-
-  //         // ✅ Convert sets to arrays and finalize
-  //         enrichedData = Object.values(groupedData).map((item: any) => ({
-  //           category: item.category,
-  //           geography: item.geography,
-  //           countryCode: item.countryCode,
-  //           volumes2024: item.volumes2024,
-  //           values2024: item.values2024,
-  //           ipsNames: item.ipsNames,
-  //           supportedUseCases: Array.from(item.supportedUseCasesSet),
-  //         }));
-  //         break;
-  //       }
-
-  //       // ✅ Domestic In Development & No Domestic
-  //       case 'DOMESTIC: IN DEVELOPMENT':
-  //       case 'Countries with no domestic IPS activity':
-  //         enrichedData = ipsList.map((ips) => ({
-  //           category,
-  //           geography: ips.geography,
-  //           countryCode: this.getCountryCode(ips.geography),
-  //           status: ips.status || null,
-  //         }));
-  //         break;
-
-  //       // ✅ Regional categories
-  //       case 'LIVE: REGIONAL IPS':
-  //       case 'REGIONAL: IN DEVELOPMENT':
-  //       case 'IN PILOT PHASE': {
-  //         let filteredIpsList = ipsList;
-
-  //         // ✅ Apply the same GeneralData-based filters as LIVE: DOMESTIC IPS
-  //         if (filters && Object.keys(filters).length > 0) {
-  //           const filterQueries: any[] = [];
-
-  //           for (const [field, values] of Object.entries(filters)) {
-  //             if (!Array.isArray(values)) continue;
-
-  //             // ✅ Handle governanceTypology special cases
-  //             if (field === 'governanceTypology') {
-  //               const orConditions: any[] = [];
-
-  //               for (const value of values) {
-  //                 const cleanedValue = String(value).trim();
-
-  //                 // Handle specific governance typology filters
-  //                 if (cleanedValue === 'Scheme rules publicly available') {
-  //                   this.logger.log('🔍 [REGIONAL] Filtering for Scheme rules publicly available -> checking schemeRulesPublic = yes');
-  //                   orConditions.push({
-  //                     schemeRulesPublic: { $regex: '^yes$', $options: 'i' }
-  //                   });
-  //                 } else if (cleanedValue === 'Indirect Participation') {
-  //                   this.logger.log('🔍 [REGIONAL] Filtering for Indirect Participation -> checking nonBankingFIsSponsorship = yes');
-  //                   orConditions.push({
-  //                     nonBankingFIsSponsorship: { $regex: '^yes$', $options: 'i' }
-  //                   });
-  //                 } else {
-  //                   // Handle regular governance typology values
-  //                   const normalizedValue = cleanedValue === 'Public Private Partnership (PPP)'
-  //                     ? 'Public Private Partnership'
-  //                     : cleanedValue;
-
-  //                   orConditions.push({
-  //                     governanceTypology: { $regex: normalizedValue, $options: 'i' }
-  //                   });
-  //                 }
-  //               }
-
-  //               if (orConditions.length > 0) {
-  //                 filterQueries.push({ $or: orConditions });
-  //               }
-  //               continue;
-  //             }
-
-  //             if (field === 'IPSFunctionality') {
-  //               const orConditions: any[] = [];
-
-  //               for (const val of values) {
-  //                 const normalized = String(val).trim().toLowerCase();
-
-  //                 // ✅ Match supportedChannels for UI-based features
-  //                 if (['qr code', 'ussd', 'app', 'browser'].includes(normalized)) {
-  //                   orConditions.push({
-  //                     supportedChannels: { $regex: normalized, $options: 'i' },
-  //                   });
-  //                 }
-
-  //                 // ✅ Match Yes/yes for specific schema fields
-  //                 if (normalized === 'apiusefunction') {
-  //                   orConditions.push({ apiUseFunction: { $regex: '^yes$', $options: 'i' } });
-  //                 }
-  //                 if (normalized === 'thirdpartyconnectionsenabled') {
-  //                   orConditions.push({ thirdPartyConnectionsEnabled: { $regex: '^yes$', $options: 'i' } });
-  //                 }
-  //                 if (normalized === 'realtimepaymentconfirmation') {
-  //                   orConditions.push({ realTimePaymentConfirmation: { $regex: '^yes$', $options: 'i' } });
-  //                 }
-  //                 if (normalized === 'pullrequesttopayenabled') {
-  //                   orConditions.push({ pullRequestToPayEnabled: { $regex: '^yes$', $options: 'i' } });
-  //                 }
-  //               }
-
-  //               if (orConditions.length > 0) {
-  //                 filterQueries.push({ $or: orConditions });
-  //               }
-  //             } else if (field !== 'governanceTypology') {
-  //               // ✅ Default handling for other filters (excluding governanceTypology as it's handled above)
-  //               const regexConditions = values.map((v) => ({
-  //                 [field]: { $regex: String(v).trim(), $options: 'i' },
-  //               }));
-  //               filterQueries.push({ $or: regexConditions });
-  //             }
-  //           }
-
-  //           // ✅ Combine all filter conditions with $and
-  //           const query: any = filterQueries.length > 0 ? { $and: filterQueries } : {};
-
-  //           this.logger.log('🔍 [REGIONAL] Final MongoDB query for filters:', JSON.stringify(query, null, 2));
-
-  //           const matchingGeneral = await this.generalDataModel
-  //             .find(query)
-  //             .select('systemName')
-  //             .lean();
-
-  //           const matchingNames = new Set(matchingGeneral.map((g) => g.systemName));
-
-  //           this.logger.log(`🔍 [REGIONAL] Found ${matchingGeneral.length} matching systems from filters`);
-  //           this.logger.log(`🔍 [REGIONAL] Sample matching system names:`, Array.from(matchingNames).slice(0, 5));
-
-  //           filteredIpsList = ipsList.filter((ips) => matchingNames.has(ips.ipsName));
-
-  //           this.logger.log(`🔍 [REGIONAL] Filtered IPS list from ${ipsList.length} to ${filteredIpsList.length} items`);
-  //         }
-
-  //         // ✅ Apply ipsNameFilter if provided (existing logic)
-  //         if (ipsNameFilter) {
-  //           const filterNames = Array.isArray(ipsNameFilter)
-  //             ? ipsNameFilter.map((v: string) => String(v).trim().toLowerCase())
-  //             : [String(ipsNameFilter).trim().toLowerCase()];
-
-  //           filteredIpsList = filteredIpsList.filter((ips) =>
-  //             ips.ipsName && filterNames.includes(String(ips.ipsName).trim().toLowerCase())
-  //           );
-
-  //           this.logger.log(`🔍 [REGIONAL] Applied ipsNameFilter: filtered to ${filteredIpsList.length} items`);
-  //         }
-
-  //         enrichedData = filteredIpsList.flatMap((ips) => {
-  //           const countries = this.splitCountries(ips.geographyCountries);
-  //           return countries.map((country) => ({
-  //             category,
-  //             country: String(country).trim(),
-  //             countryCode: this.getCountryCode(String(country).trim()),
-  //             ipsName: String(ips.ipsName || '').trim(),
-  //             ...(category !== 'LIVE: REGIONAL IPS' && { region: String(ips.region || '').trim() || null }),
-  //           }));
-  //         });
-  //         break;
-  //       }
-
-  //       // ✅ Countries with no regional IPS activity
-  //       case 'Countries with no regional IPS activity':
-  //         enrichedData = ipsList.map((ips) => ({
-  //           category,
-  //           geography: String(ips.geography || '').trim(),
-  //           countryCode: this.getCountryCode(String(ips.geography || '').trim()),
-  //         }));
-  //         break;
-  //     }
-
-  //     allResults.push({
-  //       category,
-  //       total: enrichedData.length,
-  //       data: enrichedData,
-  //     });
-  //   }
-
-  //   return {
-  //     categories,
-  //     totalCategories: categories.length,
-  //     results: allResults,
-  //   };
-  // }
-
-  // async getByCategoriesEnriched(
-  //   categories: string[],
-  //   filters?: any,
-  //   ipsNameFilter?: string | string[]
-  // ) {
-  //   const validCategories = [
-  //     'LIVE: DOMESTIC IPS',
-  //     'DOMESTIC: IN DEVELOPMENT',
-  //     'Countries with no domestic IPS activity',
-  //     'LIVE: REGIONAL IPS',
-  //     'REGIONAL: IN DEVELOPMENT',
-  //     'IN PILOT PHASE',
-  //     'Countries with no regional IPS activity',
-  //   ];
-
-  //   // ✅ If no categories provided but filters exist, default to ['LIVE: DOMESTIC IPS']
-  //   if ((!categories || categories.length === 0) && filters && Object.keys(filters).length > 0) {
-  //     categories = ['LIVE: DOMESTIC IPS'];
-  //   }
-
-  //   // ✅ Validate categories
-  //   if (!Array.isArray(categories) || categories.length === 0) {
-  //     throw new BadRequestException('Categories must be a non-empty array.');
-  //   }
-
-  //   categories.forEach((c) => {
-  //     if (!validCategories.includes(c)) {
-  //       throw new BadRequestException(`Invalid category: ${c}`);
-  //     }
-  //   });
-
-  //   // ✅ If filters exist, ensure 'LIVE: DOMESTIC IPS' is included
-  //   if (filters && Object.keys(filters).length > 0 && !categories.includes('LIVE: DOMESTIC IPS')) {
-  //     categories.push('LIVE: DOMESTIC IPS');
-  //   }
-
-  //   let allResults = [];
-
-  //   for (const category of categories) {
-  //     let ipsList = await this.ipsActivityModel.find({ category }).lean().exec();
-  //     let enrichedData = [];
-
-  //     switch (category) {
-  //       // ✅ LIVE: DOMESTIC IPS with aggregation
-  //       case 'LIVE: DOMESTIC IPS': {
-  //         let filteredIpsList = ipsList;
-
-  //         // ✅ Apply GeneralData-based filters
-  //         if (filters && Object.keys(filters).length > 0) {
-  //           const filterQueries: any[] = [];
-
-  //           for (const [field, values] of Object.entries(filters)) {
-  //             if (!Array.isArray(values)) continue;
-
-  //             // ✅ Handle governanceTypology special cases
-  //             if (field === 'governanceTypology') {
-  //               const orConditions: any[] = [];
-
-  //               for (const value of values) {
-  //                 const cleanedValue = String(value).trim();
-
-  //                 // Handle specific governance typology filters
-  //                 if (cleanedValue === 'Scheme rules publicly available') {
-  //                   this.logger.log('🔍 Filtering for Scheme rules publicly available -> checking schemeRulesPublic = yes');
-  //                   orConditions.push({
-  //                     schemeRulesPublic: { $regex: '^yes$', $options: 'i' }
-  //                   });
-  //                 } else if (cleanedValue === 'Indirect Participation') {
-  //                   this.logger.log('🔍 Filtering for Indirect Participation -> checking nonBankingFIsSponsorship = yes');
-  //                   orConditions.push({
-  //                     nonBankingFIsSponsorship: { $regex: '^yes$', $options: 'i' }
-  //                   });
-  //                 } else {
-  //                   // Handle regular governance typology values
-  //                   const normalizedValue = cleanedValue === 'Public Private Partnership (PPP)'
-  //                     ? 'Public Private Partnership'
-  //                     : cleanedValue;
-
-  //                   orConditions.push({
-  //                     governanceTypology: { $regex: normalizedValue, $options: 'i' }
-  //                   });
-  //                 }
-  //               }
-
-  //               if (orConditions.length > 0) {
-  //                 filterQueries.push({ $or: orConditions });
-  //               }
-  //               continue;
-  //             }
-
-  //             if (field === 'IPSFunctionality') {
-  //               const orConditions: any[] = [];
-
-  //               for (const val of values) {
-  //                 const normalized = String(val).trim().toLowerCase();
-
-  //                 // ✅ Match supportedChannels for UI-based features
-  //                 if (['qr code', 'ussd', 'app', 'browser'].includes(normalized)) {
-  //                   orConditions.push({
-  //                     supportedChannels: { $regex: normalized, $options: 'i' },
-  //                   });
-  //                 }
-
-  //                 // ✅ Match Yes/yes for specific schema fields
-  //                 if (normalized === 'apiusefunction') {
-  //                   orConditions.push({ apiUseFunction: { $regex: '^yes$', $options: 'i' } });
-  //                 }
-  //                 if (normalized === 'thirdpartyconnectionsenabled') {
-  //                   orConditions.push({ thirdPartyConnectionsEnabled: { $regex: '^yes$', $options: 'i' } });
-  //                 }
-  //                 if (normalized === 'realtimepaymentconfirmation') {
-  //                   orConditions.push({ realTimePaymentConfirmation: { $regex: '^yes$', $options: 'i' } });
-  //                 }
-  //                 if (normalized === 'pullrequesttopayenabled') {
-  //                   orConditions.push({ pullRequestToPayEnabled: { $regex: '^yes$', $options: 'i' } });
-  //                 }
-  //               }
-
-  //               if (orConditions.length > 0) {
-  //                 filterQueries.push({ $or: orConditions });
-  //               }
-  //             } else if (field !== 'governanceTypology') {
-  //               // ✅ Default handling for other filters (excluding governanceTypology as it's handled above)
-  //               const regexConditions = values.map((v) => ({
-  //                 [field]: { $regex: String(v).trim(), $options: 'i' },
-  //               }));
-  //               filterQueries.push({ $or: regexConditions });
-  //             }
-  //           }
-
-  //           // ✅ Combine all filter conditions with $and
-  //           const query: any = filterQueries.length > 0 ? { $and: filterQueries } : {};
-
-  //           this.logger.log('🔍 Final MongoDB query for filters:', JSON.stringify(query, null, 2));
-
-  //           const matchingGeneral = await this.generalDataModel
-  //             .find(query)
-  //             .select('systemName')
-  //             .lean();
-
-  //           const matchingNames = new Set(matchingGeneral.map((g) => g.systemName));
-
-  //           this.logger.log(`🔍 Found ${matchingGeneral.length} matching systems from filters`);
-  //           this.logger.log(`🔍 Sample matching system names:`, Array.from(matchingNames).slice(0, 5));
-
-  //           filteredIpsList = ipsList.filter((ips) => matchingNames.has(ips.ipsName));
-
-  //           this.logger.log(`🔍 Filtered IPS list from ${ipsList.length} to ${filteredIpsList.length} items`);
-  //         }
-
-  //         // ✅ Helper to safely sum numeric fields
-  //         const sumFields = (obj: any, fields: string[]) => {
-  //           return fields.reduce((sum, field) => {
-  //             const val = obj?.[field];
-  //             if (val !== null && val !== undefined && val !== '') {
-  //               const num = Number(val);
-  //               if (!isNaN(num)) {
-  //                 sum += num;
-  //               }
-  //             }
-  //             return sum;
-  //           }, 0);
-  //         };
-
-  //         // ✅ Step 1: Fetch enriched data for each IPS
-  //         const rawEnrichedData = await Promise.all(
-  //           filteredIpsList.map(async (ips) => {
-  //             const volume = await this.volumeDataModel.findOne({ systemName: ips.ipsName }).lean();
-  //             const value = await this.valueDataModel.findOne({ systemName: ips.ipsName }).lean();
-  //             const general = await this.generalDataModel.findOne({ systemName: ips.ipsName }).lean();
-
-  //             const totalVolumes = sumFields(volume, ['volumes2024']);
-  //             const totalValues = sumFields(value, ['values2024']);
-
-  //             return {
-  //               geography: ips.geography,
-  //               countryCode: this.getCountryCode(ips.geography),
-  //               ipsName: ips.ipsName,
-  //               supportedUseCases: general?.supportedUseCases || null,
-  //               volumes2024: totalVolumes || 0,
-  //               values2024: totalValues || 0,
-  //             };
-  //           })
-  //         );
-
-  //         // ✅ Step 2: Group by geography and aggregate
-  //         const groupedData = rawEnrichedData.reduce((acc, item) => {
-  //           const existing = acc[item.geography];
-  //           if (existing) {
-  //             existing.volumes2024 += item.volumes2024;
-  //             existing.values2024 += item.values2024;
-  //             existing.ipsNames.push(item.ipsName);
-  //             if (item.supportedUseCases) {
-  //               existing.supportedUseCasesSet.add(item.supportedUseCases);
-  //             }
-  //           } else {
-  //             acc[item.geography] = {
-  //               category,
-  //               geography: item.geography,
-  //               countryCode: item.countryCode,
-  //               volumes2024: item.volumes2024,
-  //               values2024: item.values2024,
-  //               ipsNames: [item.ipsName],
-  //               supportedUseCasesSet: new Set(
-  //                 item.supportedUseCases ? [item.supportedUseCases] : []
-  //               ),
-  //             };
-  //           }
-  //           return acc;
-  //         }, {} as Record<string, any>);
-
-  //         // ✅ Convert sets to arrays and finalize
-  //         enrichedData = Object.values(groupedData).map((item: any) => ({
-  //           category: item.category,
-  //           geography: item.geography,
-  //           countryCode: item.countryCode,
-  //           volumes2024: item.volumes2024,
-  //           values2024: item.values2024,
-  //           ipsNames: item.ipsNames,
-  //           supportedUseCases: Array.from(item.supportedUseCasesSet),
-  //         }));
-  //         break;
-  //       }
-
-  //       // ✅ Domestic In Development & No Domestic
-  //       case 'DOMESTIC: IN DEVELOPMENT':
-  //       case 'Countries with no domestic IPS activity':
-  //         enrichedData = ipsList.map((ips) => ({
-  //           category,
-  //           geography: ips.geography,
-  //           countryCode: this.getCountryCode(ips.geography),
-  //           status: ips.status || null,
-  //         }));
-  //         break;
-
-  //       // ✅ Regional categories
-  //       case 'LIVE: REGIONAL IPS':
-  //       case 'REGIONAL: IN DEVELOPMENT':
-  //       case 'IN PILOT PHASE': {
-  //         // ✅ Apply ipsNameFilter if provided
-  //         if (ipsNameFilter) {
-  //           const filterNames = Array.isArray(ipsNameFilter)
-  //             ? ipsNameFilter.map((v: string) => String(v).trim().toLowerCase())
-  //             : [String(ipsNameFilter).trim().toLowerCase()];
-
-  //           ipsList = ipsList.filter((ips) =>
-  //             ips.ipsName && filterNames.includes(String(ips.ipsName).trim().toLowerCase())
-  //           );
-  //         }
-
-  //         enrichedData = ipsList.flatMap((ips) => {
-  //           const countries = this.splitCountries(ips.geographyCountries);
-  //           return countries.map((country) => ({
-  //             category,
-  //             country: String(country).trim(),
-  //             countryCode: this.getCountryCode(String(country).trim()),
-  //             ipsName: String(ips.ipsName || '').trim(),
-  //             ...(category !== 'LIVE: REGIONAL IPS' && { region: String(ips.region || '').trim() || null }),
-  //           }));
-  //         });
-  //         break;
-  //       }
-
-  //       // ✅ Countries with no regional IPS activity
-  //       case 'Countries with no regional IPS activity':
-  //         enrichedData = ipsList.map((ips) => ({
-  //           category,
-  //           geography: String(ips.geography || '').trim(),
-  //           countryCode: this.getCountryCode(String(ips.geography || '').trim()),
-  //         }));
-  //         break;
-  //     }
-
-  //     allResults.push({
-  //       category,
-  //       total: enrichedData.length,
-  //       data: enrichedData,
-  //     });
-  //   }
-
-  //   return {
-  //     categories,
-  //     totalCategories: categories.length,
-  //     results: allResults,
-  //   };
-  // }
-
-  // async getByCategoriesEnriched(
-  //   categories: string[],
-  //   filters?: any,
-  //   ipsNameFilter?: string | string[]
-  // ) {
-  //   const validCategories = [
-  //     'LIVE: DOMESTIC IPS',
-  //     'DOMESTIC: IN DEVELOPMENT',
-  //     'Countries with no domestic IPS activity',
-
-  //     'LIVE: REGIONAL IPS',
-  //     'REGIONAL: IN DEVELOPMENT',
-  //     'IN PILOT PHASE',
-  //     'Countries with no regional IPS activity',
-  //   ];
-
-  //   // ✅ If no categories provided but filters exist, default to ['LIVE: DOMESTIC IPS']
-  //   if ((!categories || categories.length === 0) && filters && Object.keys(filters).length > 0) {
-  //     categories = ['LIVE: DOMESTIC IPS'];
-  //   }
-
-  //   // ✅ Validate categories
-  //   if (!Array.isArray(categories) || categories.length === 0) {
-  //     throw new BadRequestException('Categories must be a non-empty array.');
-  //   }
-
-  //   categories.forEach((c) => {
-  //     if (!validCategories.includes(c)) {
-  //       throw new BadRequestException(`Invalid category: ${c}`);
-  //     }
-  //   });
-
-  //   // ✅ If filters exist, ensure 'LIVE: DOMESTIC IPS' is included
-  //   if (filters && Object.keys(filters).length > 0 && !categories.includes('LIVE: DOMESTIC IPS')) {
-  //     categories.push('LIVE: DOMESTIC IPS');
-  //   }
-
-  //   let allResults = [];
-
-  //   for (const category of categories) {
-  //     let ipsList = await this.ipsActivityModel.find({ category }).lean().exec();
-  //     let enrichedData = [];
-
-  //     switch (category) {
-  //       // ✅ LIVE: DOMESTIC IPS with aggregation
-  //       case 'LIVE: DOMESTIC IPS': {
-  //         let filteredIpsList = ipsList;
-
-  //         // ✅ Apply GeneralData-based filters
-  //         if (filters && Object.keys(filters).length > 0) {
-  //           const filterQueries: any[] = [];
-
-  //           for (const [field, values] of Object.entries(filters)) {
-  //             if (!Array.isArray(values)) continue;
-
-  //             // ✅ Handle governanceTypology special case
-  //             if (field === 'governanceTypology') {
-  //               const cleanedValues = values.map((v: string) =>
-  //                 v === 'Public Private Partnership (PPP)' ? 'Public Private Partnership' : v
-  //               );
-
-  //               const regexConditions = cleanedValues.map((v) => ({
-  //                 [field]: { $regex: v, $options: 'i' },
-  //               }));
-  //               filterQueries.push({ $or: regexConditions });
-  //               continue;
-  //             }
-
-  //             if (field === 'IPSFunctionality') {
-  //               const orConditions: any[] = [];
-
-  //               for (const val of values) {
-  //                 const normalized = val.trim().toLowerCase();
-
-  //                 // ✅ Match supportedChannels for UI-based features
-  //                 if (['qr code', 'ussd', 'app', 'browser'].includes(normalized)) {
-  //                   orConditions.push({
-  //                     supportedChannels: { $regex: normalized, $options: 'i' },
-  //                   });
-  //                 }
-
-  //                 // ✅ Match Yes/yes for specific schema fields
-  //                 if (normalized === 'apiusefunction') {
-  //                   orConditions.push({ apiUseFunction: { $regex: '^yes$', $options: 'i' } });
-  //                 }
-  //                 if (normalized === 'thirdpartyconnectionsenabled') {
-  //                   orConditions.push({ thirdPartyConnectionsEnabled: { $regex: '^yes$', $options: 'i' } });
-  //                 }
-  //                 if (normalized === 'realtimepaymentconfirmation') {
-  //                   orConditions.push({ realTimePaymentConfirmation: { $regex: '^yes$', $options: 'i' } });
-  //                 }
-  //                 if (normalized === 'pullrequesttopayenabled') {
-  //                   orConditions.push({ pullRequestToPayEnabled: { $regex: '^yes$', $options: 'i' } });
-  //                 }
-  //               }
-
-  //               if (orConditions.length > 0) {
-  //                 filterQueries.push({ $or: orConditions });
-  //               }
-  //             } else {
-  //               // ✅ Default handling for other filters
-  //               const regexConditions = values.map((v) => ({
-  //                 [field]: { $regex: v, $options: 'i' },
-  //               }));
-  //               filterQueries.push({ $or: regexConditions });
-  //             }
-  //           }
-
-  //           // ✅ Combine all filter conditions with $and
-  //           const query: any = filterQueries.length > 0 ? { $and: filterQueries } : {};
-
-  //           const matchingGeneral = await this.generalDataModel
-  //             .find(query)
-  //             .select('systemName')
-  //             .lean();
-
-  //           const matchingNames = new Set(matchingGeneral.map((g) => g.systemName));
-  //           filteredIpsList = ipsList.filter((ips) => matchingNames.has(ips.ipsName));
-  //         }
-
-  //         // ✅ Helper to safely sum numeric fields
-  //         const sumFields = (obj: any, fields: string[]) => {
-  //           return fields.reduce((sum, field) => {
-  //             const val = obj?.[field];
-  //             if (val !== null && val !== undefined && val !== '') {
-  //               const num = Number(val);
-  //               if (!isNaN(num)) {
-  //                 sum += num;
-  //               }
-  //             }
-  //             return sum;
-  //           }, 0);
-  //         };
-
-  //         // ✅ Step 1: Fetch enriched data for each IPS
-  //         const rawEnrichedData = await Promise.all(
-  //           filteredIpsList.map(async (ips) => {
-  //             const volume = await this.volumeDataModel.findOne({ systemName: ips.ipsName }).lean();
-  //             const value = await this.valueDataModel.findOne({ systemName: ips.ipsName }).lean();
-  //             const general = await this.generalDataModel.findOne({ systemName: ips.ipsName }).lean();
-
-  //             const totalVolumes = sumFields(volume, ['volumes2024']);
-  //             const totalValues = sumFields(value, ['values2024']);
-
-  //             return {
-  //               geography: ips.geography,
-  //               countryCode: this.getCountryCode(ips.geography),
-  //               ipsName: ips.ipsName,
-  //               supportedUseCases: general?.supportedUseCases || null,
-  //               volumes2024: totalVolumes || 0,
-  //               values2024: totalValues || 0,
-  //             };
-  //           })
-  //         );
-
-  //         // ✅ Step 2: Group by geography and aggregate
-  //         const groupedData = rawEnrichedData.reduce((acc, item) => {
-  //           const existing = acc[item.geography];
-  //           if (existing) {
-  //             existing.volumes2024 += item.volumes2024;
-  //             existing.values2024 += item.values2024;
-  //             existing.ipsNames.push(item.ipsName);
-  //             if (item.supportedUseCases) {
-  //               existing.supportedUseCasesSet.add(item.supportedUseCases);
-  //             }
-  //           } else {
-  //             acc[item.geography] = {
-  //               category,
-  //               geography: item.geography,
-  //               countryCode: item.countryCode,
-  //               volumes2024: item.volumes2024,
-  //               values2024: item.values2024,
-  //               ipsNames: [item.ipsName],
-  //               supportedUseCasesSet: new Set(
-  //                 item.supportedUseCases ? [item.supportedUseCases] : []
-  //               ),
-  //             };
-  //           }
-  //           return acc;
-  //         }, {} as Record<string, any>);
-
-  //         // ✅ Convert sets to arrays and finalize
-  //         enrichedData = Object.values(groupedData).map((item: any) => ({
-  //           category: item.category,
-  //           geography: item.geography,
-  //           countryCode: item.countryCode,
-  //           volumes2024: item.volumes2024,
-  //           values2024: item.values2024,
-  //           ipsNames: item.ipsNames,
-  //           supportedUseCases: Array.from(item.supportedUseCasesSet),
-  //         }));
-  //         break;
-  //       }
-
-  //       // ✅ Domestic In Development & No Domestic
-  //       case 'DOMESTIC: IN DEVELOPMENT':
-  //       case 'Countries with no domestic IPS activity':
-  //         enrichedData = ipsList.map((ips) => ({
-  //           category,
-  //           geography: ips.geography,
-  //           countryCode: this.getCountryCode(ips.geography),
-  //           status: ips.status || null,
-  //         }));
-  //         break;
-
-  //       // ✅ Regional categories
-  //       case 'LIVE: REGIONAL IPS':
-  //       case 'REGIONAL: IN DEVELOPMENT':
-  //       case 'IN PILOT PHASE': {
-  //         // ✅ Apply ipsNameFilter if provided
-  //         if (ipsNameFilter) {
-  //           const filterNames = Array.isArray(ipsNameFilter)
-  //             ? ipsNameFilter.map((v: string) => v.toLowerCase())
-  //             : [String(ipsNameFilter).toLowerCase()];
-
-  //           ipsList = ipsList.filter((ips) =>
-  //             ips.ipsName && filterNames.includes(ips.ipsName.toLowerCase())
-  //           );
-  //         }
-
-  //         enrichedData = ipsList.flatMap((ips) => {
-  //           const countries = this.splitCountries(ips.geographyCountries);
-  //           return countries.map((country) => ({
-  //             category,
-  //             country,
-  //             countryCode: this.getCountryCode(country),
-  //             ipsName: ips.ipsName,
-  //             ...(category !== 'LIVE: REGIONAL IPS' && { region: ips.region || null }),
-  //           }));
-  //         });
-  //         break;
-  //       }
-
-  //       // ✅ Countries with no regional IPS activity
-  //       case 'Countries with no regional IPS activity':
-  //         enrichedData = ipsList.map((ips) => ({
-  //           category,
-  //           geography: ips.geography,
-  //           countryCode: this.getCountryCode(ips.geography),
-  //         }));
-  //         break;
-  //     }
-
-  //     allResults.push({
-  //       category,
-  //       total: enrichedData.length,
-  //       data: enrichedData,
-  //     });
-  //   }
-
-  //   return {
-  //     categories,
-  //     totalCategories: categories.length,
-  //     results: allResults,
-  //   };
-  // }
-
-
-
-  
-  // async getByCategoriesEnriched(
-  //   categories: string[],
-  //   filters?: any,
-  //   ipsNameFilter?: string | string[]
-  // ) {
-  //   const validCategories = [
-  //     'LIVE: DOMESTIC IPS',
-  //     'DOMESTIC: IN DEVELOPMENT',
-  //     'Countries with no domestic IPS activity',
-
-  //     'LIVE: REGIONAL IPS',
-  //     'REGIONAL: IN DEVELOPMENT',
-  //     'IN PILOT PHASE',
-  //     'Countries with no regional IPS activity',
-  //   ];
-
-  //   // ✅ If no categories provided but filters exist, default to ['LIVE: DOMESTIC IPS']
-  //   if ((!categories || categories.length === 0) && filters && Object.keys(filters).length > 0) {
-  //     categories = ['LIVE: DOMESTIC IPS'];
-  //   }
-
-  //   // ✅ Validate categories
-  //   if (!Array.isArray(categories) || categories.length === 0) {
-  //     throw new BadRequestException('Categories must be a non-empty array.');
-  //   }
-
-  //   categories.forEach((c) => {
-  //     if (!validCategories.includes(c)) {
-  //       throw new BadRequestException(`Invalid category: ${c}`);
-  //     }
-  //   });
-
-  //   // ✅ If filters exist, ensure 'LIVE: DOMESTIC IPS' is included
-  //   if (filters && Object.keys(filters).length > 0 && !categories.includes('LIVE: DOMESTIC IPS')) {
-  //     categories.push('LIVE: DOMESTIC IPS');
-  //   }
-
-  //   let allResults = [];
-
-  //   for (const category of categories) {
-  //     let ipsList = await this.ipsActivityModel.find({ category }).lean().exec();
-  //     let enrichedData = [];
-
-  //     switch (category) {
-  //       // ✅ LIVE: DOMESTIC IPS with aggregation
-  //       case 'LIVE: DOMESTIC IPS': {
-  //         let filteredIpsList = ipsList;
-
-  //         // ✅ Apply GeneralData-based filters
-  //         if (filters && Object.keys(filters).length > 0) {
-  //           const filterQueries: any[] = [];
-
-  //           for (const [field, values] of Object.entries(filters)) {
-  //             if (!Array.isArray(values)) continue;
-
-  //             if (field === 'IPSFunctionality') {
-  //               const orConditions: any[] = [];
-
-  //               for (const val of values) {
-  //                 const normalized = val.trim().toLowerCase();
-
-  //                 // ✅ Match supportedChannels for UI-based features
-  //                 if (['qr code', 'ussd', 'app', 'browser'].includes(normalized)) {
-  //                   orConditions.push({
-  //                     supportedChannels: { $regex: normalized, $options: 'i' },
-  //                   });
-  //                 }
-
-  //                 // ✅ Match Yes/yes for specific schema fields
-  //                 if (normalized === 'apiusefunction') {
-  //                   orConditions.push({ apiUseFunction: { $regex: '^yes$', $options: 'i' } });
-  //                 }
-  //                 if (normalized === 'thirdpartyconnectionsenabled') {
-  //                   orConditions.push({ thirdPartyConnectionsEnabled: { $regex: '^yes$', $options: 'i' } });
-  //                 }
-  //                 if (normalized === 'realtimepaymentconfirmation') {
-  //                   orConditions.push({ realTimePaymentConfirmation: { $regex: '^yes$', $options: 'i' } });
-  //                 }
-  //                 if (normalized === 'pullrequesttopayenabled') {
-  //                   orConditions.push({ pullRequestToPayEnabled: { $regex: '^yes$', $options: 'i' } });
-  //                 }
-  //               }
-
-  //               if (orConditions.length > 0) {
-  //                 filterQueries.push({ $or: orConditions });
-  //               }
-  //             } else {
-  //               // ✅ Default handling for other filters
-  //               const regexConditions = values.map((v) => ({
-  //                 [field]: { $regex: v, $options: 'i' },
-  //               }));
-  //               filterQueries.push({ $or: regexConditions });
-  //             }
-  //           }
-
-  //           // ✅ Combine all filter conditions with $and
-  //           const query: any = filterQueries.length > 0 ? { $and: filterQueries } : {};
-
-  //           const matchingGeneral = await this.generalDataModel
-  //             .find(query)
-  //             .select('systemName')
-  //             .lean();
-
-  //           const matchingNames = new Set(matchingGeneral.map((g) => g.systemName));
-  //           filteredIpsList = ipsList.filter((ips) => matchingNames.has(ips.ipsName));
-  //         }
-
-  //         // ✅ Helper to safely sum numeric fields
-  //         const sumFields = (obj: any, fields: string[]) => {
-  //           return fields.reduce((sum, field) => {
-  //             const val = obj?.[field];
-  //             if (val !== null && val !== undefined && val !== '') {
-  //               const num = Number(val);
-  //               if (!isNaN(num)) {
-  //                 sum += num;
-  //               }
-  //             }
-  //             return sum;
-  //           }, 0);
-  //         };
-
-  //         // ✅ Step 1: Fetch enriched data for each IPS
-  //         const rawEnrichedData = await Promise.all(
-  //           filteredIpsList.map(async (ips) => {
-  //             const volume = await this.volumeDataModel.findOne({ systemName: ips.ipsName }).lean();
-  //             const value = await this.valueDataModel.findOne({ systemName: ips.ipsName }).lean();
-  //             const general = await this.generalDataModel.findOne({ systemName: ips.ipsName }).lean();
-
-  //             const totalVolumes = sumFields(volume, [
-  //               // "volumes2023"
-  //               'volumes2024',
-  //             ]);
-
-  //             const totalValues = sumFields(value, [
-  //               // "values2023"
-  //               'values2024',
-  //             ]);
-
-  //             return {
-  //               geography: ips.geography,
-  //               countryCode: this.getCountryCode(ips.geography),
-  //               ipsName: ips.ipsName,
-  //               supportedUseCases: general?.supportedUseCases || null,
-  //               volumes2024: totalVolumes || 0,
-  //               values2024: totalValues || 0,
-  //             };
-  //           })
-  //         );
-
-  //         // ✅ Step 2: Group by geography and aggregate
-  //         const groupedData = rawEnrichedData.reduce((acc, item) => {
-  //           const existing = acc[item.geography];
-  //           if (existing) {
-  //             existing.volumes2024 += item.volumes2024;
-  //             existing.values2024 += item.values2024;
-  //             existing.ipsNames.push(item.ipsName);
-  //             if (item.supportedUseCases) {
-  //               existing.supportedUseCasesSet.add(item.supportedUseCases);
-  //             }
-  //           } else {
-  //             acc[item.geography] = {
-  //               category,
-  //               geography: item.geography,
-  //               countryCode: item.countryCode,
-  //               volumes2024: item.volumes2024,
-  //               values2024: item.values2024,
-  //               ipsNames: [item.ipsName],
-  //               supportedUseCasesSet: new Set(
-  //                 item.supportedUseCases ? [item.supportedUseCases] : []
-  //               ),
-  //             };
-  //           }
-  //           return acc;
-  //         }, {} as Record<string, any>);
-
-  //         // ✅ Convert sets to arrays and finalize
-  //         enrichedData = Object.values(groupedData).map((item: any) => ({
-  //           category: item.category,
-  //           geography: item.geography,
-  //           countryCode: item.countryCode,
-  //           volumes2024: item.volumes2024,
-  //           values2024: item.values2024,
-  //           ipsNames: item.ipsNames,
-  //           supportedUseCases: Array.from(item.supportedUseCasesSet),
-  //         }));
-  //         break;
-  //       }
-
-  //       // ✅ Domestic In Development & No Domestic
-  //       case 'DOMESTIC: IN DEVELOPMENT':
-  //       case 'Countries with no domestic IPS activity':
-  //         enrichedData = ipsList.map((ips) => ({
-  //           category,
-  //           geography: ips.geography,
-  //           countryCode: this.getCountryCode(ips.geography),
-  //           status: ips.status || null,
-  //         }));
-  //         break;
-
-  //       // ✅ Regional categories
-  //       case 'LIVE: REGIONAL IPS':
-  //       case 'REGIONAL: IN DEVELOPMENT':
-  //       case 'IN PILOT PHASE': {
-  //         // ✅ Apply ipsNameFilter if provided
-  //         if (ipsNameFilter) {
-  //           const filterNames = Array.isArray(ipsNameFilter)
-  //             ? ipsNameFilter.map((v: string) => v.toLowerCase())
-  //             : [String(ipsNameFilter).toLowerCase()];
-
-  //           ipsList = ipsList.filter((ips) =>
-  //             ips.ipsName && filterNames.includes(ips.ipsName.toLowerCase())
-  //           );
-  //         }
-
-  //         enrichedData = ipsList.flatMap((ips) => {
-  //           const countries = this.splitCountries(ips.geographyCountries);
-  //           return countries.map((country) => ({
-  //             category,
-  //             country,
-  //             countryCode: this.getCountryCode(country),
-  //             ipsName: ips.ipsName,
-  //             ...(category !== 'LIVE: REGIONAL IPS' && { region: ips.region || null }),
-  //           }));
-  //         });
-  //         break;
-  //       }
-
-  //       // ✅ Countries with no regional IPS activity
-  //       case 'Countries with no regional IPS activity':
-  //         enrichedData = ipsList.map((ips) => ({
-  //           category,
-  //           geography: ips.geography,
-  //           countryCode: this.getCountryCode(ips.geography),
-  //         }));
-  //         break;
-  //     }
-
-  //     allResults.push({
-  //       category,
-  //       total: enrichedData.length,
-  //       data: enrichedData,
-  //     });
-  //   }
-
-  //   return {
-  //     categories,
-  //     totalCategories: categories.length,
-  //     results: allResults,
-  //   };
-  // }
-
-  // async fetchAndSyncIpsActivity() {
-  //   try {
-  //     const credentials = JSON.parse(
-  //       fs.readFileSync(
-  //         path.resolve(__dirname, '../../../config/authentication-411609-dcd87bcd1c0b.json'),
-  //         'utf8',
-  //       ),
-  //     );
-
-  //     const auth = new google.auth.GoogleAuth({
-  //       credentials,
-  //       scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-  //     });
-
-  //     const sheets = google.sheets({ version: 'v4', auth });
-  //     const spreadsheetId = '1VBLgF2JRCHh4RKPHhTB66yCD-Zc5Ru0wCxX3ZEDtTR0';
-  //     const range = 'Live IPS List!B1:ZZ';
-
-  //     const res = await sheets.spreadsheets.values.get({ spreadsheetId, range });
-  //     const rows = res.data.values || [];
-
-  //     if (!rows.length) {
-  //       this.logger.warn('No IPS Activity data found.');
-  //       return;
-  //     }
-
-  //     // Define structure for categories
-  //     const categoriesConfig = [
-  //       {
-  //         category: 'LIVE: DOMESTIC IPS',
-  //         headers: ['ipsName', 'geography', 'region', 'ipsType'],
-  //         start: 2,
-  //         end: 34,
-  //       },
-  //       {
-  //         category: 'DOMESTIC: IN DEVELOPMENT',
-  //         headers: ['geography', 'status'],
-  //         start: 39,
-  //         end: 57,
-  //       },
-  //       {
-  //         category: 'Countries with no domestic IPS activity',
-  //         headers: ['geography'],
-  //         start: 59,
-  //         end: 68,
-  //       },
-  //       {
-  //         category: 'LIVE: REGIONAL IPS',
-  //         headers: ['ipsName', 'geographyCountries', 'region', 'ipsType'],
-  //         start: 70,
-  //         end: 73,
-  //       },
-  //       {
-  //         category: 'REGIONAL: IN DEVELOPMENT',
-  //         headers: ['ipsName', 'geographyCountries', 'region'],
-  //         start: 75,
-  //         end: 78,
-  //       },
-  //       {
-  //         category: 'IN PILOT PHASE',
-  //         headers: ['ipsName', 'geographyCountries', 'region'],
-  //         start: 80,
-  //         end: 81,
-  //       },
-  //       {
-  //         category: 'Countries with no regional IPS activity',
-  //         headers: ['geography'],
-  //         start: 83,
-  //         end: 86,
-  //       },
-  //     ];
-
-  //     const ops = [];
-
-  //     for (const config of categoriesConfig) {
-  //       for (let i = config.start; i <= config.end; i++) {
-  //         const row = rows[i] || [];
-  //         if (row.every(cell => !cell || cell.trim() === '')) continue; // Skip empty rows
-
-  //         const doc: any = { category: config.category };
-
-  //         // Map headers to row data
-  //         config.headers.forEach((header, idx) => {
-  //           doc[header] = row[idx] || '';
-  //         });
-
-  //         // Build a dynamic unique filter
-  //         const filter: any = { category: doc.category };
-
-  //         if (doc.ipsName) filter.ipsName = doc.ipsName;
-  //         if (doc.geography) filter.geography = doc.geography;
-  //         if (doc.geographyCountries) filter.geographyCountries = doc.geographyCountries;
-
-  //         ops.push({
-  //           updateOne: {
-  //             filter,
-  //             update: { $set: doc },
-  //             upsert: true,
-  //           },
-  //         });
-  //       }
-  //     }
-
-  //     if (ops.length) {
-  //       const bulkRes = await this.ipsActivityModel.bulkWrite(ops);
-  //       this.logger.log(`IPS Activity data synced: ${JSON.stringify(bulkRes)}`);
-  //     } else {
-  //       this.logger.log('No valid IPS Activity rows to upsert.');
-  //     }
-  //   } catch (error) {
-  //     this.logger.error('Error fetching IPS Activity from Google Sheets', error);
-  //   }
-  // }
-
-  // async fetchAndSyncIpsActivity() {
-  //   try {
-  //     const credentials = JSON.parse(
-  //       fs.readFileSync(
-  //         path.resolve(__dirname, '../../../config/authentication-411609-dcd87bcd1c0b.json'),
-  //         'utf8',
-  //       ),
-  //     );
-
-  //     const auth = new google.auth.GoogleAuth({
-  //       credentials,
-  //       scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-  //     });
-
-  //     const sheets = google.sheets({ version: 'v4', auth });
-  //     const spreadsheetId = '1VBLgF2JRCHh4RKPHhTB66yCD-Zc5Ru0wCxX3ZEDtTR0';
-  //     const range = 'Live IPS List!B1:ZZ';
-
-  //     const res = await sheets.spreadsheets.values.get({ spreadsheetId, range });
-  //     const rows = res.data.values || [];
-
-  //     if (!rows.length) {
-  //       this.logger.warn('No IPS Activity data found.');
-  //       return;
-  //     }
-
-  //     // Define fixed structure
-  //     const categoriesConfig = [
-  //       {
-  //         category: 'LIVE: DOMESTIC IPS',
-  //         headers: ['ipsName', 'geography', 'region', 'ipsType'],
-  //         start: 3,
-  //         end: 33,
-  //       },
-  //       {
-  //         category: 'DOMESTIC: IN DEVELOPMENT', // enum value
-  //         headers: ['geography', 'status'],
-  //         start: 40,
-  //         end: 57,
-  //       },
-  //       {
-  //         category: 'Countries with no domestic IPS activity',
-  //         headers: ['geography'],
-  //         start: 60,
-  //         end: 68,
-  //       },
-  //       {
-  //         category: 'LIVE: REGIONAL IPS',
-  //         headers: ['ipsName', 'geographyCountries', 'region', 'ipsType'],
-  //         start: 71,
-  //         end: 73,
-  //       },
-  //       {
-  //         category: 'REGIONAL: IN DEVELOPMENT', // enum value
-  //         headers: ['ipsName', 'geographyCountries', 'region'],
-  //         start: 75,
-  //         end: 78,
-  //       },
-  //       {
-  //         category: 'IN PILOT PHASE',
-  //         headers: ['ipsName', 'geographyCountries', 'region'],
-  //         start: 80,
-  //         end: 81,
-  //       },
-  //       {
-  //         category: 'Countries with no regional IPS activity',
-  //         headers: ['geography'],
-  //         start: 83,
-  //         end: 86,
-  //       },
-  //     ];
-
-
-  //     const ops = [];
-
-  //     for (const config of categoriesConfig) {
-  //       for (let i = config.start; i <= config.end; i++) {
-  //         const row = rows[i] || [];
-  //         if (row.every(cell => !cell || cell.trim() === '')) continue; // skip empty row
-
-  //         const doc: any = { category: config.category };
-
-  //         config.headers.forEach((header, idx) => {
-  //           doc[header] = row[idx] || '';
-  //         });
-
-  //         ops.push({
-  //           updateOne: {
-  //             filter: { category: doc.category, ...this.buildKeyFilter(doc) },
-  //             update: { $set: doc },
-  //             upsert: true,
-  //           },
-  //         });
-  //       }
-  //     }
-
-  //     if (ops.length) {
-  //       const bulkRes = await this.ipsActivityModel.bulkWrite(ops);
-  //       this.logger.log(`IPS Activity data synced: ${JSON.stringify(bulkRes)}`);
-  //     } else {
-  //       this.logger.log('No valid IPS Activity rows to upsert.');
-  //     }
-
-  //   } catch (error) {
-  //     this.logger.error('Error fetching IPS Activity from Google Sheets', error);
-  //   }
-  // }
-
-  // private buildKeyFilter(doc: any) {
-  //   if (doc.geography) return { geography: doc.geography };
-  //   if (doc.ipsName) return { ipsName: doc.ipsName };
-  //   return {};
-  // }

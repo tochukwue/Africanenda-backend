@@ -31,6 +31,27 @@ export class IpslistController {
     return this.ipslistService.searchSystemNames(term);
   }
 
+    @Get('french/general-data/search-system-names')
+  @ApiQuery({
+    name: 'term',
+    required: true,
+    example: 'Pay',
+    description: 'Partial or full system name to search (case-insensitive). Min 2 characters.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of matching system names.',
+    schema: {
+      example: [
+        { systemName: 'PayNow' },
+        { systemName: 'MobilePay' },
+      ],
+    },
+  })
+  async frenchSearchSystemNames(@Query('term') term: string) {
+    return this.ipslistService.frenchSearchSystemNames(term);
+  }
+
   @Get('general-data/by-geographic-reach')
   @ApiQuery({
     name: 'geographicReach',
@@ -56,41 +77,32 @@ export class IpslistController {
   async getByGeographicReach(@Query('geographicReach') geographicReach: string) {
     return this.ipslistService.getByGeographicReach(geographicReach);
   }
-  // @Post('value-data/graph/value')
-  // @ApiOperation({ summary: 'Get ValueData with country codes by system names' })
-  // @ApiBody({
-  //   schema: {
-  //     type: 'object',
-  //     properties: {
-  //       systemNames: {
-  //         type: 'array',
-  //         items: { type: 'string' },
-  //         example: ['eKash', 'EIPS']
-  //       }
-  //     }
-  //   }
-  // })
-  // async getValueData(@Body('systemNames') systemNames: string[]) {
-  //   return this.ipslistService.getValueDataWithCountryCode(systemNames);
-  // }
 
-  // @Post('volume-data/graph/volume')
-  // @ApiOperation({ summary: 'Get VolumeData with country codes by system names' })
-  // @ApiBody({
-  //   schema: {
-  //     type: 'object',
-  //     properties: {
-  //       systemNames: {
-  //         type: 'array',
-  //         items: { type: 'string' },
-  //         example: ['eKash', 'EIPS']
-  //       }
-  //     }
-  //   }
-  // })
-  // async getVolumeData(@Body('systemNames') systemNames: string[]) {
-  //   return this.ipslistService.getVolumeDataWithCountryCode(systemNames);
-  // }
+    @Get('french/general-data/by-geographic-reach')
+  @ApiQuery({
+    name: 'geographicReach',
+    required: true,
+    example: 'Nigeria',
+    description: 'Exact geographic reach value (case-insensitive).',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of GeneralData records matching the given geographic reach.',
+    schema: {
+      example: [
+        {
+          systemName: 'PayNow',
+          geographicReach: 'Nigeria',
+          supportedUseCases: ['P2P', 'Retail'],
+          participantTypes: ['Bank'],
+          paymentInitiationChannels: ['Mobile App', 'Internet Banking'],
+        },
+      ],
+    },
+  })
+  async frenchGetByGeographicReach(@Query('geographicReach') geographicReach: string) {
+    return this.ipslistService.frenchGetByGeographicReach(geographicReach);
+  }
 
 
   
@@ -132,6 +144,46 @@ export class IpslistController {
     return this.ipslistService.getValueDataWithCountryCode(systemNames, startYear, endYear);
   }
 
+    @Post('french/value-data/graph/value')
+  @ApiOperation({ summary: 'Get ValueData with country codes by system names and optional year filtering' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        systemNames: {
+          type: 'array',
+          items: { type: 'string' },
+          example: ['eKash', 'EIPS', 'total'],
+          description: 'List of system names. Include "total" for aggregated data.'
+        },
+        startYear: {
+          type: 'integer',
+          example: 2021,
+          description: 'Optional start year (e.g., 2020)'
+        },
+        endYear: {
+          type: 'integer',
+          example: 2023,
+          description: 'Optional end year (e.g., 2025)'
+        }
+      },
+      required: ['systemNames']
+    }
+  })
+  async frenchGetValueDataWithCountryCode(
+    @Body('systemNames') systemNames: string[],
+    @Body('startYear') startYear?: number,
+    @Body('endYear') endYear?: number
+  ) {
+    if (!Array.isArray(systemNames) || systemNames.length === 0) {
+      throw new BadRequestException('systemNames must be a non-empty array.');
+    }
+
+    return this.ipslistService.frenchGetValueDataWithCountryCode(systemNames, startYear, endYear);
+  }
+
+
+
   @Post('volume-data/graph/volume')
   @ApiOperation({ summary: 'Get VolumeData with country codes by system names and optional year filtering' })
   @ApiBody({
@@ -170,6 +222,44 @@ export class IpslistController {
     return this.ipslistService.getVolumeDataWithCountryCode(systemNames, startYear, endYear);
   }
 
+    @Post('french/volume-data/graph/volume')
+  @ApiOperation({ summary: 'Get VolumeData with country codes by system names and optional year filtering' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        systemNames: {
+          type: 'array',
+          items: { type: 'string' },
+          example: ['eKash', 'EIPS', 'total'],
+          description: 'List of system names. Include "total" for aggregated data.'
+        },
+        startYear: {
+          type: 'integer',
+          example: 2021,
+          description: 'Optional start year (e.g., 2020)'
+        },
+        endYear: {
+          type: 'integer',
+          example: 2023,
+          description: 'Optional end year (e.g., 2025)'
+        }
+      },
+      required: ['systemNames']
+    }
+  })
+  async frenchGetVolumeDataWithCountryCode(
+    @Body('systemNames') systemNames: string[],
+    @Body('startYear') startYear?: number,
+    @Body('endYear') endYear?: number
+  ) {
+    if (!Array.isArray(systemNames) || systemNames.length === 0) {
+      throw new BadRequestException('systemNames must be a non-empty array.');
+    }
+
+    return this.ipslistService.frenchGetVolumeDataWithCountryCode(systemNames, startYear, endYear);
+  }
+
 
   @Get('value/all-except-total')
   @ApiOperation({ summary: 'Fetch all ValueData except the one with systemName "Total"' })
@@ -177,10 +267,24 @@ export class IpslistController {
     return this.ipslistService.getAllValueDataExceptTotal();
   }
 
+  
+  @Get('french/value/all-except-total')
+  @ApiOperation({ summary: 'Fetch all ValueData except the one with systemName "Total"' })
+  async frenchGetAllValueDataExceptTotal() {
+    return this.ipslistService.frenchGetAllValueDataExceptTotal();
+  }
+
+
   @Get('value/total')
   @ApiOperation({ summary: 'Fetch ValueData where systemName = "Total"' })
   async getValueDataTotal() {
     return this.ipslistService.getValueDataTotal();
+  }
+
+    @Get('french/value/total')
+  @ApiOperation({ summary: 'Fetch ValueData where systemName = "Total"' })
+  async frenchGetValueDataTotal() {
+    return this.ipslistService.frenchGetValueDataTotal();
   }
 
   @Get('volume/all-except-total')
@@ -189,10 +293,22 @@ export class IpslistController {
     return this.ipslistService.getAllVolumeDataExceptTotal();
   }
 
+    @Get('french/volume/all-except-total')
+  @ApiOperation({ summary: 'Fetch all VolumeData except the one with systemName "Total"' })
+  async frenchGetAllVolumeDataExceptTotal() {
+    return this.ipslistService.frenchGetAllVolumeDataExceptTotal();
+  }
+
   @Get('volume/total')
   @ApiOperation({ summary: 'Fetch VolumeData where systemName = "Total"' })
   async getVolumeDataTotal() {
     return this.ipslistService.getVolumeDataTotal();
+  }
+
+    @Get('french/volume/total')
+  @ApiOperation({ summary: 'Fetch VolumeData where systemName = "Total"' })
+  async frenchGetVolumeDataTotal() {
+    return this.ipslistService.frenchGetVolumeDataTotal();
   }
 
   @Get('ips-profile/grouped-by-region')
@@ -203,6 +319,22 @@ export class IpslistController {
   async getGeneralDataGroupedByRegion() {
     return this.ipslistService.getGeneralDataGroupedByRegionAndCountry();
   }
+  
+    @Get('french/ips-profile/grouped-by-region')
+  @ApiOperation({
+    summary: 'Get General Data grouped by geographic region',
+    description: 'Fetches all General Data records grouped by geographicRegion, including countryCode for each record.',
+  })
+  async frenchGetGeneralDataGroupedByRegionAndCountry() {
+    return this.ipslistService.frenchGetGeneralDataGroupedByRegionAndCountry();
+  }
+
+
+
+
+
+
+
 
 
   @Get('categories/summary')
@@ -332,5 +464,18 @@ async getByCategoriesPost(@Body() dto: GetByCategoriesDto) {
   @ApiResponse({ status: 500, description: 'Internal server error.' })
   async manualSync() {
     return this.ipslistService.manualSyncIpsActivity();
+  }
+
+    @Post('french/manual-sync')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Manually sync IPS Activity data from Google Sheets',
+    description:
+      'Triggers a manual synchronization of IPS Activity data from the configured Google Sheet into MongoDB. Useful for on-demand updates without waiting for the scheduled cron job.',
+  })
+  @ApiResponse({ status: 200, description: 'IPS Activity data synced successfully.' })
+  @ApiResponse({ status: 500, description: 'Internal server error.' })
+  async FrenchfetchAndSyncIpsActivity() {
+    return this.ipslistService.FrenchfetchAndSyncIpsActivity();
   }
 }

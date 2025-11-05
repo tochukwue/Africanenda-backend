@@ -17,6 +17,15 @@ export class ValuedataController {
     return { message: 'Value Data synced successfully' };
   }
 
+    @Post('french/sync')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Manually sync Value Data from Google Sheets' })
+  @ApiResponse({ status: 200, description: 'Data synced successfully' })
+  async FrenchsyncFromGoogleSheet() {
+    await this.valueDataService.FrenchsyncFromGoogleSheet();
+    return { message: 'Value Data synced successfully' };
+  }
+
   @Get()
   @ApiOperation({ summary: 'Get all stored Value Data records' })
   @ApiResponse({
