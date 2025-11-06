@@ -15,6 +15,7 @@ import { FrenchIpsActivity, FrenchIpsActivityDocument } from './schema/fripslist
 import { FrenchGeneralData, FrenchGeneralDataDocument } from 'src/generaldata/schema/frgeneraldatum.schema';
 import { FrenchValueData, FrenchValueDataDocument } from 'src/valuedata/schema/frvaluedatum.schema';
 import { FrenchVolumeData, FrenchVolumeDataDocument } from 'src/volumedata/schema/frvolumedatum.schema';
+import { contentSecurityPolicy } from 'helmet';
 
 @Injectable()
 export class IpslistService {
@@ -450,86 +451,86 @@ export class IpslistService {
   }
 
 
-async countByDomesticAndRegional() {
-  const categoryAliases: Record<string, string> = {
-    'LIVE: DOMESTIC IPS': 'Live',
-    'DOMESTIC: IN DEVELOPMENT': 'In-development',
-    'Countries with no domestic IPS activity': 'No Domestic IPS Activity',
-    'LIVE: REGIONAL IPS': 'Live',
-    'REGIONAL: IN DEVELOPMENT': 'In-development',
-    'IN PILOT PHASE': 'Pilot',
-    'Countries with no regional IPS activity': 'No Cross-Border IPS Activity',
-  };
+  async countByDomesticAndRegional() {
+    const categoryAliases: Record<string, string> = {
+      'LIVE: DOMESTIC IPS': 'Live',
+      'DOMESTIC: IN DEVELOPMENT': 'In-development',
+      'Countries with no domestic IPS activity': 'No Domestic IPS Activity',
+      'LIVE: REGIONAL IPS': 'Live',
+      'REGIONAL: IN DEVELOPMENT': 'In-development',
+      'IN PILOT PHASE': 'Pilot',
+      'Countries with no regional IPS activity': 'No Cross-Border IPS Activity',
+    };
 
-  // Tooltips for categories
-  const tooltips: Record<string, string> = {
-    'LIVE: DOMESTIC IPS': 'Countries with fully operational IPS',
-    'DOMESTIC: IN DEVELOPMENT': 'Countries in planning or development phases',
-    'Countries with no domestic IPS activity': 'Countries without an active IPS initiative',
-    'LIVE: REGIONAL IPS': 'Regions with functioning cross-border IPS',
-    'REGIONAL: IN DEVELOPMENT': 'Regional IPS in planning or development',
-    'IN PILOT PHASE': 'Regional IPS is undergoing testing',
-    'Countries with no regional IPS activity': 'Regions without regional IPS initiatives',
-  };
+    // Tooltips for categories
+    const tooltips: Record<string, string> = {
+      'LIVE: DOMESTIC IPS': 'Countries with fully operational IPS',
+      'DOMESTIC: IN DEVELOPMENT': 'Countries in planning or development phases',
+      'Countries with no domestic IPS activity': 'Countries without an active IPS initiative',
+      'LIVE: REGIONAL IPS': 'Regions with functioning cross-border IPS',
+      'REGIONAL: IN DEVELOPMENT': 'Regional IPS in planning or development',
+      'IN PILOT PHASE': 'Regional IPS is undergoing testing',
+      'Countries with no regional IPS activity': 'Regions without regional IPS initiatives',
+    };
 
-  const domesticCategories = [
-    'LIVE: DOMESTIC IPS',
-    'DOMESTIC: IN DEVELOPMENT',
-    'Countries with no domestic IPS activity',
-  ];
+    const domesticCategories = [
+      'LIVE: DOMESTIC IPS',
+      'DOMESTIC: IN DEVELOPMENT',
+      'Countries with no domestic IPS activity',
+    ];
 
-  const regionalCategories = [
-    'LIVE: REGIONAL IPS',
-    'IN PILOT PHASE',
-    'REGIONAL: IN DEVELOPMENT',
-    'Countries with no regional IPS activity',
-  ];
+    const regionalCategories = [
+      'LIVE: REGIONAL IPS',
+      'IN PILOT PHASE',
+      'REGIONAL: IN DEVELOPMENT',
+      'Countries with no regional IPS activity',
+    ];
 
-  const buildGroup = async (groupName: string, categories: string[], isRegional = false) => {
-    const categoriesWithCounts = await Promise.all(
-      categories.map(async (category) => {
-        const docs = await this.ipsActivityModel.find({ category }).lean().exec();
-        const total = docs.length;
+    const buildGroup = async (groupName: string, categories: string[], isRegional = false) => {
+      const categoriesWithCounts = await Promise.all(
+        categories.map(async (category) => {
+          const docs = await this.ipsActivityModel.find({ category }).lean().exec();
+          const total = docs.length;
 
-        // Collect unique ipsNames for regional categories
-        let ipsNames: string[] = [];
-        if (isRegional) {
-          ipsNames = [
-            ...new Set(
-              docs
-                .map((doc) => doc.ipsName)
-                .filter((name): name is string => !!name && name.trim() !== ''),
-            ),
-          ];
-        }
+          // Collect unique ipsNames for regional categories
+          let ipsNames: string[] = [];
+          if (isRegional) {
+            ipsNames = [
+              ...new Set(
+                docs
+                  .map((doc) => doc.ipsName)
+                  .filter((name): name is string => !!name && name.trim() !== ''),
+              ),
+            ];
+          }
 
-        return {
-          category,
-          alias: categoryAliases[category] || category,
-          total,
-          tooltip: tooltips[category] || '', // add tooltip
-          ...(isRegional ? { ipsNames } : {}),
-        };
-      }),
-    );
+          return {
+            category,
+            alias: categoryAliases[category] || category,
+            total,
+            tooltip: tooltips[category] || '', // add tooltip
+            ...(isRegional ? { ipsNames } : {}),
+          };
+        }),
+      );
 
-    const total = categoriesWithCounts.reduce((sum, c) => sum + c.total, 0);
+      const total = categoriesWithCounts.reduce((sum, c) => sum + c.total, 0);
+
+      return {
+        group: groupName,
+        total,
+        categories: categoriesWithCounts,
+      };
+    };
+
+    const domestic = await buildGroup('Domestic', domesticCategories);
+    const regional = await buildGroup('Regional', regionalCategories, true);
 
     return {
-      group: groupName,
-      total,
-      categories: categoriesWithCounts,
+      totalGroups: 2,
+      groups: [domestic, regional],
     };
-  };
-
-  const domestic = await buildGroup('Domestic', domesticCategories);
-  const regional = await buildGroup('Regional', regionalCategories, true);
-
-  return {
-    totalGroups: 2,
-    groups: [domestic, regional],
-  };
-}
+  }
 
 
 
@@ -897,102 +898,102 @@ async countByDomesticAndRegional() {
   }
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
-async FrenchcountByDomesticAndRegional() {
-  // French-to-English alias mapping for readability or UI labels
-  const categoryAliases: Record<string, string> = {
-    "EN SERVICE : IPS NATIONAUX": "En service (nationaux)",
-    "DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "En développement (domestique)",
-    "Pays n'ayant pas d'activité IPS au niveau national": "Aucune activité IPS nationale",
-    "EN SERVICE: IPS RÉGIONAL": "En service (régional)",
-    "RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "En développement (régional)",
-    "EN PHASE PILOTE": "En phase pilote",
-    "Pays n'ayant pas d'activité régionale en matière d'IPS": "Aucune activité IPS régionale",
-  };
-
-  // 🧠 Tooltip mapping (French)
-  const categoryTooltips: Record<string, string> = {
-    "EN SERVICE : IPS NATIONAUX": "Pays avec un IPS pleinement opérationnel",
-    "DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "Pays en phase de planification ou de développement d’un IPS domestique",
-    "Pays n'ayant pas d'activité IPS au niveau national": "Pays sans initiative IPS nationale active",
-    "EN SERVICE: IPS RÉGIONAL": "Régions avec un IPS transfrontalier opérationnel",
-    "RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "IPS régional en phase de planification ou de développement",
-    "EN PHASE PILOTE": "L’IPS régional est en phase pilote ou de test",
-    "Pays n'ayant pas d'activité régionale en matière d'IPS": "Régions sans initiatives d’IPS régional",
-  };
-
-  // Domestic (national-level) categories
-  const domesticCategories = [
-    "EN SERVICE : IPS NATIONAUX",
-    "DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)",
-    `Pays n'ayant pas d'activité IPS au niveau national`,
-  ];
-
-  // Regional (cross-border) categories
-  const regionalCategories = [
-    "EN SERVICE: IPS RÉGIONAL",
-    "RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)",
-    "EN PHASE PILOTE",
-    `Pays n'ayant pas d'activité régionale en matière d'IPS`,
-  ];
-
-  /**
-   * Internal helper to group and count by category.
-   * For regional categories, also lists unique IPS names.
-   */
-  const buildGroup = async (
-    groupName: string,
-    categories: string[],
-    isRegional = false,
-  ) => {
-    const categoriesWithCounts = await Promise.all(
-      categories.map(async (category) => {
-        const docs = await this.frenchipsActivityModel.find({ category })
-          .lean()
-          .exec();
-
-        const total = docs.length;
-
-        // For regional only: collect unique IPS names
-        let ipsNames: string[] = [];
-        if (isRegional) {
-          ipsNames = [
-            ...new Set(
-              docs
-                .map((doc) => doc.ipsName)
-                .filter((name): name is string => !!name && name.trim() !== ""),
-            ),
-          ];
-        }
-
-        return {
-          category,
-          alias: categoryAliases[category] || category,
-          tooltip: categoryTooltips[category] || "Aucune description disponible",
-          total,
-          ...(isRegional ? { ipsNames } : {}), // add ipsNames only for regional
-        };
-      }),
-    );
-
-    const total = categoriesWithCounts.reduce((sum, c) => sum + c.total, 0);
-
-    return {
-      group: groupName,
-      total,
-      categories: categoriesWithCounts,
+  async FrenchcountByDomesticAndRegional() {
+    // French-to-English alias mapping for readability or UI labels
+    const categoryAliases: Record<string, string> = {
+      "EN SERVICE : IPS NATIONAUX": "En service (nationaux)",
+      "DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "En développement (domestique)",
+      "Pays n'ayant pas d'activité IPS au niveau national": "Aucune activité IPS nationale",
+      "EN SERVICE: IPS RÉGIONAL": "En service (régional)",
+      "RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "En développement (régional)",
+      "EN PHASE PILOTE": "En phase pilote",
+      "Pays n'ayant pas d'activité régionale en matière d'IPS": "Aucune activité IPS régionale",
     };
-  };
 
-  // Build both groups
-  const domestic = await buildGroup("Domestique", domesticCategories);
-  const regional = await buildGroup("Régional", regionalCategories, true);
+    // 🧠 Tooltip mapping (French)
+    const categoryTooltips: Record<string, string> = {
+      "EN SERVICE : IPS NATIONAUX": "Pays avec un IPS pleinement opérationnel",
+      "DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "Pays en phase de planification ou de développement d’un IPS domestique",
+      "Pays n'ayant pas d'activité IPS au niveau national": "Pays sans initiative IPS nationale active",
+      "EN SERVICE: IPS RÉGIONAL": "Régions avec un IPS transfrontalier opérationnel",
+      "RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "IPS régional en phase de planification ou de développement",
+      "EN PHASE PILOTE": "L’IPS régional est en phase pilote ou de test",
+      "Pays n'ayant pas d'activité régionale en matière d'IPS": "Régions sans initiatives d’IPS régional",
+    };
 
-  // Final structure
-  return {
-    totalGroups: 2,
-    groups: [domestic, regional],
-  };
-}
+    // Domestic (national-level) categories
+    const domesticCategories = [
+      "EN SERVICE : IPS NATIONAUX",
+      "DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)",
+      `Pays n'ayant pas d'activité IPS au niveau national`,
+    ];
+
+    // Regional (cross-border) categories
+    const regionalCategories = [
+      "EN SERVICE: IPS RÉGIONAL",
+      "RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)",
+      "EN PHASE PILOTE",
+      `Pays n'ayant pas d'activité régionale en matière d'IPS`,
+    ];
+
+    /**
+     * Internal helper to group and count by category.
+     * For regional categories, also lists unique IPS names.
+     */
+    const buildGroup = async (
+      groupName: string,
+      categories: string[],
+      isRegional = false,
+    ) => {
+      const categoriesWithCounts = await Promise.all(
+        categories.map(async (category) => {
+          const docs = await this.frenchipsActivityModel.find({ category })
+            .lean()
+            .exec();
+
+          const total = docs.length;
+
+          // For regional only: collect unique IPS names
+          let ipsNames: string[] = [];
+          if (isRegional) {
+            ipsNames = [
+              ...new Set(
+                docs
+                  .map((doc) => doc.ipsName)
+                  .filter((name): name is string => !!name && name.trim() !== ""),
+              ),
+            ];
+          }
+
+          return {
+            category,
+            alias: categoryAliases[category] || category,
+            tooltip: categoryTooltips[category] || "Aucune description disponible",
+            total,
+            ...(isRegional ? { ipsNames } : {}), // add ipsNames only for regional
+          };
+        }),
+      );
+
+      const total = categoriesWithCounts.reduce((sum, c) => sum + c.total, 0);
+
+      return {
+        group: groupName,
+        total,
+        categories: categoriesWithCounts,
+      };
+    };
+
+    // Build both groups
+    const domestic = await buildGroup("Domestique", domesticCategories);
+    const regional = await buildGroup("Régional", regionalCategories, true);
+
+    // Final structure
+    return {
+      totalGroups: 2,
+      groups: [domestic, regional],
+    };
+  }
 
 
 
@@ -1016,28 +1017,29 @@ async FrenchcountByDomesticAndRegional() {
       "DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)",
       "Pays n'ayant pas d'activité IPS au niveau national",
       "EN SERVICE: IPS RÉGIONAL",
+      "EN SERVICE : IPS RÉGIONAL",
       "RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)",
       "EN PHASE PILOTE",
       "Pays n'ayant pas d'activité régionale en matière d'IPS",
     ];
 
-    // ✅ Si aucune catégorie n’est fournie mais des filtres existent
+    // ✅ If no categories provided but filters exist, default to live IPS categories
     if ((!categories || categories.length === 0) && filters && Object.keys(filters).length > 0) {
       categories = ["EN SERVICE : IPS NATIONAUX", "EN SERVICE: IPS RÉGIONAL"];
     }
 
-    // ✅ Validation
+    // ✅ Validate categories
     if (!Array.isArray(categories) || categories.length === 0) {
-      throw new BadRequestException("Les catégories doivent être un tableau non vide.");
+      throw new BadRequestException("Categories must be a non-empty array.");
     }
 
     categories.forEach((c) => {
       if (!validCategories.includes(c)) {
-        throw new BadRequestException(`Catégorie invalide : ${c}`);
+        throw new BadRequestException(`Invalid category: ${c}`);
       }
     });
 
-    // ✅ Si filtres existent, ajouter les IPS en service
+    // ✅ If filters exist, ensure both live categories are included
     if (filters && Object.keys(filters).length > 0) {
       if (!categories.includes("EN SERVICE : IPS NATIONAUX")) {
         categories.push("EN SERVICE : IPS NATIONAUX");
@@ -1054,11 +1056,11 @@ async FrenchcountByDomesticAndRegional() {
       let enrichedData = [];
 
       switch (category) {
-        // ✅ EN SERVICE : IPS NATIONAUX
+        // ✅ Domestic live IPS
         case "EN SERVICE : IPS NATIONAUX": {
           let filteredIpsList = ipsList;
 
-          // ✅ Appliquer les filtres basés sur les données générales
+          // ✅ Apply filters based on general data
           if (filters && Object.keys(filters).length > 0) {
             const filterQueries: any[] = [];
 
@@ -1115,12 +1117,12 @@ async FrenchcountByDomesticAndRegional() {
             }
 
             const query: any = filterQueries.length > 0 ? { $and: filterQueries } : {};
-            const matchingGeneral = await this.generalDataModel.find(query).select("systemName").lean();
+            const matchingGeneral = await this.frenchgeneralDataModel.find(query).select("systemName").lean();
             const matchingNames = new Set(matchingGeneral.map((g) => g.systemName));
             filteredIpsList = ipsList.filter((ips) => matchingNames.has(ips.ipsName));
           }
 
-          // ✅ Helper de somme
+          // ✅ Helper to sum numeric fields
           const sumFields = (obj: any, fields: string[]) =>
             fields.reduce((sum, field) => {
               const val = obj?.[field];
@@ -1128,7 +1130,7 @@ async FrenchcountByDomesticAndRegional() {
               return !isNaN(num) ? sum + num : sum;
             }, 0);
 
-          // ✅ Enrichissement
+          // ✅ Enrich with volume, value, and inclusivity data
           const rawEnrichedData = await Promise.all(
             filteredIpsList.map(async (ips) => {
               const volume = await this.frenchvolumeDataModel.findOne({ systemName: ips.ipsName }).lean();
@@ -1150,7 +1152,7 @@ async FrenchcountByDomesticAndRegional() {
             })
           );
 
-          // ✅ Groupement par géographie
+          // ✅ Group by geography
           const groupedData = rawEnrichedData.reduce((acc, item) => {
             const existing = acc[item.geography];
             if (existing) {
@@ -1187,7 +1189,7 @@ async FrenchcountByDomesticAndRegional() {
           break;
         }
 
-        // ✅ Développement domestique & aucun IPS national
+        // ✅ Domestic development and no IPS activity
         case "DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)":
         case "Pays n'ayant pas d'activité IPS au niveau national":
           enrichedData = ipsList.map((ips) => ({
@@ -1198,29 +1200,77 @@ async FrenchcountByDomesticAndRegional() {
           }));
           break;
 
-        // ✅ Catégories régionales
+        // ✅ Regional IPS categories
         case "EN SERVICE: IPS RÉGIONAL":
+        case "EN SERVICE : IPS RÉGIONAL":
         case "RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)":
         case "EN PHASE PILOTE": {
           let filteredIpsList = ipsList;
 
-          // ✅ Même logique de filtre que ci-dessus
+          // ✅ Apply filters (same logic as English)
           if (filters && Object.keys(filters).length > 0) {
             const filterQueries: any[] = [];
+
             for (const [field, values] of Object.entries(filters)) {
               if (!Array.isArray(values)) continue;
-              const regexConditions = values.map((v) => ({
-                [field]: { $regex: String(v).trim(), $options: "i" },
-              }));
-              filterQueries.push({ $or: regexConditions });
+
+              if (field === "governanceTypology") {
+                const orConditions: any[] = [];
+                for (const value of values) {
+                  const cleanedValue = String(value).trim();
+                  if (cleanedValue === "Scheme rules publicly available") {
+                    orConditions.push({ schemeRulesPublic: { $regex: "^yes$", $options: "i" } });
+                  } else if (cleanedValue === "Indirect Participation") {
+                    orConditions.push({ nonBankingFIsSponsorship: { $regex: "^yes$", $options: "i" } });
+                  } else {
+                    const normalizedValue =
+                      cleanedValue === "Public Private Partnership (PPP)"
+                        ? "Public Private Partnership"
+                        : cleanedValue;
+                    orConditions.push({ governanceTypology: { $regex: normalizedValue, $options: "i" } });
+                  }
+                }
+                if (orConditions.length > 0) filterQueries.push({ $or: orConditions });
+                continue;
+              }
+
+              if (field === "IPSFunctionality") {
+                const orConditions: any[] = [];
+                for (const val of values) {
+                  const normalized = String(val).trim().toLowerCase();
+
+                  if (["qr code", "ussd", "app", "browser"].includes(normalized)) {
+                    orConditions.push({ supportedChannels: { $regex: normalized, $options: "i" } });
+                  }
+                  if (normalized === "apiusefunction") {
+                    orConditions.push({ apiUseFunction: { $regex: "^yes$", $options: "i" } });
+                  }
+                  if (normalized === "thirdpartyconnectionsenabled") {
+                    orConditions.push({ thirdPartyConnectionsEnabled: { $regex: "^yes$", $options: "i" } });
+                  }
+                  if (normalized === "realtimepaymentconfirmation") {
+                    orConditions.push({ realTimePaymentConfirmation: { $regex: "^yes$", $options: "i" } });
+                  }
+                  if (normalized === "pullrequesttopayenabled") {
+                    orConditions.push({ pullRequestToPayEnabled: { $regex: "^yes$", $options: "i" } });
+                  }
+                }
+                if (orConditions.length > 0) filterQueries.push({ $or: orConditions });
+              } else {
+                const regexConditions = values.map((v) => ({
+                  [field]: { $regex: String(v).trim(), $options: "i" },
+                }));
+                filterQueries.push({ $or: regexConditions });
+              }
             }
+
             const query: any = filterQueries.length > 0 ? { $and: filterQueries } : {};
             const matchingGeneral = await this.frenchgeneralDataModel.find(query).select("systemName").lean();
             const matchingNames = new Set(matchingGeneral.map((g) => g.systemName));
             filteredIpsList = ipsList.filter((ips) => matchingNames.has(ips.ipsName));
           }
 
-          // ✅ Appliquer ipsNameFilter
+          // ✅ Filter by IPS name
           if (ipsNameFilter) {
             const filterNames = Array.isArray(ipsNameFilter)
               ? ipsNameFilter.map((v: string) => String(v).trim().toLowerCase())
@@ -1231,20 +1281,23 @@ async FrenchcountByDomesticAndRegional() {
             );
           }
 
-          // ✅ Enrichissement
+          // ✅ Enrich regional data with inclusivity and countries
           const nestedData = await Promise.all(
             filteredIpsList.map(async (ips) => {
+              console.log("Processing IPS:", ips.ipsName);
+              console.log("Fully qualified IPS data:", ips);
               const general = await this.frenchgeneralDataModel.findOne({ systemName: ips.ipsName }).lean();
-              const countries = this.splitCountries(ips.geographyCountries);
+              const countries = this.splitCountries(ips.geography);
+              console.log(" - Countries:", countries);
+              const regionName = String(ips.region || "").trim() || null;
+
               return countries.map((country) => ({
                 category,
                 country: String(country).trim(),
                 countryCode: this.getCountryCodeFrench(String(country).trim()),
                 ipsName: String(ips.ipsName || "").trim(),
                 inclusivityRanking: general?.inclusivityRanking || null,
-                ...(category !== "EN SERVICE: IPS RÉGIONAL" && {
-                  region: String(ips.region || "").trim() || null,
-                }),
+                ...(category !== "EN SERVICE: IPS RÉGIONAL" && { region: regionName }),
               }));
             })
           );
@@ -1253,7 +1306,7 @@ async FrenchcountByDomesticAndRegional() {
           break;
         }
 
-        // ✅ Aucun IPS régional
+        // ✅ No regional IPS activity
         case "Pays n'ayant pas d'activité régionale en matière d'IPS":
           enrichedData = ipsList.map((ips) => ({
             category,
@@ -1279,15 +1332,16 @@ async FrenchcountByDomesticAndRegional() {
 
 
 
-  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
-  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
-  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
-  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
-  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
-  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
-  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
-  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
-  //////////////////////////////////////////CATEGORY FILTERS////////////////////////////////////////////
+
+  //////////////////////////////////////////ENGLISH CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////ENGLISH CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////ENGLISH CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////ENGLISH CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////ENGLISH CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////ENGLISH CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////ENGLISH CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////ENGLISH CATEGORY FILTERS////////////////////////////////////////////
+  //////////////////////////////////////////ENGLISH CATEGORY FILTERS////////////////////////////////////////////
 
 
 
