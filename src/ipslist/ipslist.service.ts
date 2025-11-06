@@ -1071,40 +1071,58 @@ export class IpslistService {
                 const orConditions: any[] = [];
                 for (const value of values) {
                   const cleanedValue = String(value).trim();
-                  if (cleanedValue === "Scheme rules publicly available") {
-                    orConditions.push({ schemeRulesPublic: { $regex: "^yes$", $options: "i" } });
-                  } else if (cleanedValue === "Indirect Participation") {
-                    orConditions.push({ nonBankingFIsSponsorship: { $regex: "^yes$", $options: "i" } });
+                  if (cleanedValue === "Règles du système publiquement disponibles") {
+                    orConditions.push({ schemeRulesPublic: { $regex: "^oui$", $options: "i" } });
+                  } else if (cleanedValue === "Participation indirecte") {
+                    orConditions.push({ nonBankingFIsSponsorship: { $regex: "^oui$", $options: "i" } });
                   } else {
                     const normalizedValue =
-                      cleanedValue === "Public Private Partnership (PPP)"
-                        ? "Public Private Partnership"
+                      cleanedValue === "Partenariat public-privé (PPP)"
+                        ? "Partenariat public-privé"
                         : cleanedValue;
                     orConditions.push({ governanceTypology: { $regex: normalizedValue, $options: "i" } });
                   }
                 }
                 if (orConditions.length > 0) filterQueries.push({ $or: orConditions });
                 continue;
+
+                // const orConditions: any[] = [];
+                // for (const value of values) {
+                //   const cleanedValue = String(value).trim();
+                //   if (cleanedValue === "Scheme rules publicly available") {
+                //     orConditions.push({ schemeRulesPublic: { $regex: "^yes$", $options: "i" } });
+                //   } else if (cleanedValue === "Indirect Participation") {
+                //     orConditions.push({ nonBankingFIsSponsorship: { $regex: "^yes$", $options: "i" } });
+                //   } else {
+                //     const normalizedValue =
+                //       cleanedValue === "Public Private Partnership (PPP)"
+                //         ? "Public Private Partnership"
+                //         : cleanedValue;
+                //     orConditions.push({ governanceTypology: { $regex: normalizedValue, $options: "i" } });
+                //   }
+                // }
+                // if (orConditions.length > 0) filterQueries.push({ $or: orConditions });
+                // continue;
               }
 
               if (field === "IPSFunctionality") {
                 const orConditions: any[] = [];
                 for (const val of values) {
                   const normalized = String(val).trim().toLowerCase();
-                  if (["qr code", "ussd", "app", "browser"].includes(normalized)) {
+                  if (["code qr", "ussd", "application", "navigateur"].includes(normalized)) {
                     orConditions.push({ supportedChannels: { $regex: normalized, $options: "i" } });
                   }
                   if (normalized === "apiusefunction") {
-                    orConditions.push({ apiUseFunction: { $regex: "^yes$", $options: "i" } });
+                    orConditions.push({ apiUseFunction: { $regex: "^oui$", $options: "i" } });
                   }
                   if (normalized === "thirdpartyconnectionsenabled") {
-                    orConditions.push({ thirdPartyConnectionsEnabled: { $regex: "^yes$", $options: "i" } });
+                    orConditions.push({ thirdPartyConnectionsEnabled: { $regex: "^oui$", $options: "i" } });
                   }
                   if (normalized === "realtimepaymentconfirmation") {
-                    orConditions.push({ realTimePaymentConfirmation: { $regex: "^yes$", $options: "i" } });
+                    orConditions.push({ realTimePaymentConfirmation: { $regex: "^oui$", $options: "i" } });
                   }
                   if (normalized === "pullrequesttopayenabled") {
-                    orConditions.push({ pullRequestToPayEnabled: { $regex: "^yes$", $options: "i" } });
+                    orConditions.push({ pullRequestToPayEnabled: { $regex: "^oui$", $options: "i" } });
                   }
                 }
                 if (orConditions.length > 0) filterQueries.push({ $or: orConditions });
@@ -1218,20 +1236,38 @@ export class IpslistService {
                 const orConditions: any[] = [];
                 for (const value of values) {
                   const cleanedValue = String(value).trim();
-                  if (cleanedValue === "Scheme rules publicly available") {
-                    orConditions.push({ schemeRulesPublic: { $regex: "^yes$", $options: "i" } });
-                  } else if (cleanedValue === "Indirect Participation") {
-                    orConditions.push({ nonBankingFIsSponsorship: { $regex: "^yes$", $options: "i" } });
+                  if (cleanedValue === "Règles du système publiquement disponibles") {
+                    orConditions.push({ schemeRulesPublic: { $regex: "^oui$", $options: "i" } });
+                  } else if (cleanedValue === "Participation indirecte") {
+                    orConditions.push({ nonBankingFIsSponsorship: { $regex: "^oui$", $options: "i" } });
                   } else {
                     const normalizedValue =
-                      cleanedValue === "Public Private Partnership (PPP)"
-                        ? "Public Private Partnership"
+                      cleanedValue === "Partenariat public-privé (PPP)"
+                        ? "Partenariat public-privé"
                         : cleanedValue;
                     orConditions.push({ governanceTypology: { $regex: normalizedValue, $options: "i" } });
                   }
                 }
                 if (orConditions.length > 0) filterQueries.push({ $or: orConditions });
                 continue;
+
+                // const orConditions: any[] = [];
+                // for (const value of values) {
+                //   const cleanedValue = String(value).trim();
+                //   if (cleanedValue === "Scheme rules publicly available") {
+                //     orConditions.push({ schemeRulesPublic: { $regex: "^yes$", $options: "i" } });
+                //   } else if (cleanedValue === "Indirect Participation") {
+                //     orConditions.push({ nonBankingFIsSponsorship: { $regex: "^yes$", $options: "i" } });
+                //   } else {
+                //     const normalizedValue =
+                //       cleanedValue === "Public Private Partnership (PPP)"
+                //         ? "Public Private Partnership"
+                //         : cleanedValue;
+                //     orConditions.push({ governanceTypology: { $regex: normalizedValue, $options: "i" } });
+                //   }
+                // }
+                // if (orConditions.length > 0) filterQueries.push({ $or: orConditions });
+                // continue;
               }
 
               if (field === "IPSFunctionality") {
@@ -1239,20 +1275,20 @@ export class IpslistService {
                 for (const val of values) {
                   const normalized = String(val).trim().toLowerCase();
 
-                  if (["qr code", "ussd", "app", "browser"].includes(normalized)) {
+                  if (["code qr", "ussd", "application", "navigateur"].includes(normalized)) {
                     orConditions.push({ supportedChannels: { $regex: normalized, $options: "i" } });
                   }
                   if (normalized === "apiusefunction") {
-                    orConditions.push({ apiUseFunction: { $regex: "^yes$", $options: "i" } });
+                    orConditions.push({ apiUseFunction: { $regex: "^oui$", $options: "i" } });
                   }
                   if (normalized === "thirdpartyconnectionsenabled") {
-                    orConditions.push({ thirdPartyConnectionsEnabled: { $regex: "^yes$", $options: "i" } });
+                    orConditions.push({ thirdPartyConnectionsEnabled: { $regex: "^oui$", $options: "i" } });
                   }
                   if (normalized === "realtimepaymentconfirmation") {
-                    orConditions.push({ realTimePaymentConfirmation: { $regex: "^yes$", $options: "i" } });
+                    orConditions.push({ realTimePaymentConfirmation: { $regex: "^oui$", $options: "i" } });
                   }
                   if (normalized === "pullrequesttopayenabled") {
-                    orConditions.push({ pullRequestToPayEnabled: { $regex: "^yes$", $options: "i" } });
+                    orConditions.push({ pullRequestToPayEnabled: { $regex: "^oui$", $options: "i" } });
                   }
                 }
                 if (orConditions.length > 0) filterQueries.push({ $or: orConditions });
@@ -1284,11 +1320,11 @@ export class IpslistService {
           // ✅ Enrich regional data with inclusivity and countries
           const nestedData = await Promise.all(
             filteredIpsList.map(async (ips) => {
-              console.log("Processing IPS:", ips.ipsName);
-              console.log("Fully qualified IPS data:", ips);
+              // console.log("Processing IPS:", ips.ipsName);
+              // console.log("Fully qualified IPS data:", ips);
               const general = await this.frenchgeneralDataModel.findOne({ systemName: ips.ipsName }).lean();
-              const countries = this.splitCountries(ips.geography);
-              console.log(" - Countries:", countries);
+              const countries = this.splitCountries(ips.geography || ips.geographyCountries);
+              // console.log(" - Countries:", countries);
               const regionName = String(ips.region || "").trim() || null;
 
               return countries.map((country) => ({
@@ -1310,8 +1346,8 @@ export class IpslistService {
         case "Pays n'ayant pas d'activité régionale en matière d'IPS":
           enrichedData = ipsList.map((ips) => ({
             category,
-            geography: String(ips.geography || "").trim(),
-            countryCode: this.getCountryCodeFrench(String(ips.geography || "").trim()),
+            geography: String(ips.geography || ips.geographyCountries || "").trim(),
+            countryCode: this.getCountryCodeFrench(String(ips.geography || ips.geographyCountries || "").trim()),
           }));
           break;
       }
