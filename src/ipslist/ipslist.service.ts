@@ -450,77 +450,87 @@ export class IpslistService {
   }
 
 
-  async countByDomesticAndRegional() {
-    const categoryAliases: Record<string, string> = {
-      'LIVE: DOMESTIC IPS': 'Live',
-      'DOMESTIC: IN DEVELOPMENT': 'In-development',
-      'Countries with no domestic IPS activity': 'No Domestic IPS Activity',
-      'LIVE: REGIONAL IPS': 'Live',
-      'REGIONAL: IN DEVELOPMENT': 'In-development',
-      'IN PILOT PHASE': 'Pilot',
-      'Countries with no regional IPS activity': 'No Cross-Border IPS Activity',
-      // 'IN PILOT': 'Pilot',
-    };
+async countByDomesticAndRegional() {
+  const categoryAliases: Record<string, string> = {
+    'LIVE: DOMESTIC IPS': 'Live',
+    'DOMESTIC: IN DEVELOPMENT': 'In-development',
+    'Countries with no domestic IPS activity': 'No Domestic IPS Activity',
+    'LIVE: REGIONAL IPS': 'Live',
+    'REGIONAL: IN DEVELOPMENT': 'In-development',
+    'IN PILOT PHASE': 'Pilot',
+    'Countries with no regional IPS activity': 'No Cross-Border IPS Activity',
+  };
 
-    const domesticCategories = [
-      'LIVE: DOMESTIC IPS',
-      // 'IN PILOT',
-      'DOMESTIC: IN DEVELOPMENT',
-      'Countries with no domestic IPS activity',
+  // Tooltips for categories
+  const tooltips: Record<string, string> = {
+    'LIVE: DOMESTIC IPS': 'Countries with fully operational IPS',
+    'DOMESTIC: IN DEVELOPMENT': 'Countries in planning or development phases',
+    'Countries with no domestic IPS activity': 'Countries without an active IPS initiative',
+    'LIVE: REGIONAL IPS': 'Regions with functioning cross-border IPS',
+    'REGIONAL: IN DEVELOPMENT': 'Regional IPS in planning or development',
+    'IN PILOT PHASE': 'Regional IPS is undergoing testing',
+    'Countries with no regional IPS activity': 'Regions without regional IPS initiatives',
+  };
 
-    ];
+  const domesticCategories = [
+    'LIVE: DOMESTIC IPS',
+    'DOMESTIC: IN DEVELOPMENT',
+    'Countries with no domestic IPS activity',
+  ];
 
-    const regionalCategories = [
-      'LIVE: REGIONAL IPS',
-      'IN PILOT PHASE',
-      'REGIONAL: IN DEVELOPMENT',
-      'Countries with no regional IPS activity',
-    ];
+  const regionalCategories = [
+    'LIVE: REGIONAL IPS',
+    'IN PILOT PHASE',
+    'REGIONAL: IN DEVELOPMENT',
+    'Countries with no regional IPS activity',
+  ];
 
-    const buildGroup = async (groupName: string, categories: string[], isRegional = false) => {
-      const categoriesWithCounts = await Promise.all(
-        categories.map(async (category) => {
-          const docs = await this.ipsActivityModel.find({ category }).lean().exec();
-          const total = docs.length;
+  const buildGroup = async (groupName: string, categories: string[], isRegional = false) => {
+    const categoriesWithCounts = await Promise.all(
+      categories.map(async (category) => {
+        const docs = await this.ipsActivityModel.find({ category }).lean().exec();
+        const total = docs.length;
 
-          // For regional only: collect unique ipsName values
-          let ipsNames: string[] = [];
-          if (isRegional) {
-            ipsNames = [
-              ...new Set(
-                docs
-                  .map((doc) => doc.ipsName)
-                  .filter((name): name is string => !!name) // filter out null/undefined
-              ),
-            ];
-          }
+        // Collect unique ipsNames for regional categories
+        let ipsNames: string[] = [];
+        if (isRegional) {
+          ipsNames = [
+            ...new Set(
+              docs
+                .map((doc) => doc.ipsName)
+                .filter((name): name is string => !!name && name.trim() !== ''),
+            ),
+          ];
+        }
 
-          return {
-            category,
-            alias: categoryAliases[category] || category,
-            total,
-            ...(isRegional ? { ipsNames } : {}), // only add ipsNames for regional
-          };
-        })
-      );
+        return {
+          category,
+          alias: categoryAliases[category] || category,
+          total,
+          tooltip: tooltips[category] || '', // add tooltip
+          ...(isRegional ? { ipsNames } : {}),
+        };
+      }),
+    );
 
-      const total = categoriesWithCounts.reduce((sum, c) => sum + c.total, 0);
-
-      return {
-        group: groupName,
-        total,
-        categories: categoriesWithCounts,
-      };
-    };
-
-    const domestic = await buildGroup('Domestic', domesticCategories);
-    const regional = await buildGroup('Regional', regionalCategories, true);
+    const total = categoriesWithCounts.reduce((sum, c) => sum + c.total, 0);
 
     return {
-      totalGroups: 2,
-      groups: [domestic, regional],
+      group: groupName,
+      total,
+      categories: categoriesWithCounts,
     };
-  }
+  };
+
+  const domestic = await buildGroup('Domestic', domesticCategories);
+  const regional = await buildGroup('Regional', regionalCategories, true);
+
+  return {
+    totalGroups: 2,
+    groups: [domestic, regional],
+  };
+}
+
 
 
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
@@ -622,199 +632,199 @@ export class IpslistService {
 
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
- async frenchGetValueDataWithCountryCode(systemNames: string[], startYear?: number, endYear?: number) {
-  if (!Array.isArray(systemNames) || systemNames.length === 0) {
-    throw new BadRequestException('systemNames doit être un tableau non vide.');
-  }
-  if (startYear && endYear && startYear > endYear) {
-    throw new BadRequestException('startYear ne peut pas être supérieur à endYear.');
-  }
+  async frenchGetValueDataWithCountryCode(systemNames: string[], startYear?: number, endYear?: number) {
+    if (!Array.isArray(systemNames) || systemNames.length === 0) {
+      throw new BadRequestException('systemNames doit être un tableau non vide.');
+    }
+    if (startYear && endYear && startYear > endYear) {
+      throw new BadRequestException('startYear ne peut pas être supérieur à endYear.');
+    }
 
-  // Normalize and detect if "total" is requested
-  const normalized = systemNames.map(n => n.trim().toLowerCase());
-  const includeTotal = normalized.includes("total");
+    // Normalize and detect if "total" is requested
+    const normalized = systemNames.map(n => n.trim().toLowerCase());
+    const includeTotal = normalized.includes("total");
 
-  // If "total" was requested, fetch all entries — same as English version
-  const results = includeTotal
-    ? await this.frenchvalueDataModel.find({}).lean()
-    : await this.frenchvalueDataModel.find({
+    // If "total" was requested, fetch all entries — same as English version
+    const results = includeTotal
+      ? await this.frenchvalueDataModel.find({}).lean()
+      : await this.frenchvalueDataModel.find({
         systemName: { $in: [...systemNames, "Total des taux de change", "total des taux de change"] },
       }).lean();
 
-  let mapped: any[] = [];
+    let mapped: any[] = [];
 
-  // Handle full TOTAL request (aggregate all)
-  if (systemNames.length === 1 && normalized[0] === "total") {
-    const grouped = results.reduce((acc, item) => {
-      const key = item.geographicReach || 'UNKNOWN';
-      if (!acc[key]) {
-        acc[key] = {
-          geographicReach: key,
-          countryCode: this.getCountryCodeFrench(key),
-          systemNames: [],
+    // Handle full TOTAL request (aggregate all)
+    if (systemNames.length === 1 && normalized[0] === "total") {
+      const grouped = results.reduce((acc, item) => {
+        const key = item.geographicReach || 'UNKNOWN';
+        if (!acc[key]) {
+          acc[key] = {
+            geographicReach: key,
+            countryCode: this.getCountryCodeFrench(key),
+            systemNames: [],
+          };
+          const range = startYear && endYear ? [startYear, endYear] : [2020, 2024];
+          for (let y = range[0]; y <= range[1]; y++) acc[key][`values${y}`] = 0;
+        }
+
+        acc[key].systemNames.push(item.systemName);
+        const fields = Object.keys(item).filter(k => k.startsWith('values'));
+        for (const field of fields) {
+          const yearMatch = field.match(/(\d{4})$/);
+          if (yearMatch) {
+            const year = parseInt(yearMatch[1], 10);
+            if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
+              const val = item[field];
+              const num = Number(val);
+              if (!isNaN(num)) acc[key][field] = (acc[key][field] || 0) + num;
+            }
+          }
+        }
+        return acc;
+      }, {} as Record<string, any>);
+
+      mapped = Object.values(grouped);
+    } else {
+      // For specific system names
+      mapped = results.map(item => {
+        const filteredItem: any = {
+          geographicReach: item.geographicReach,
+          countryCode: this.getCountryCodeFrench(item.geographicReach),
+          systemNames: [item.systemName],
         };
-        const range = startYear && endYear ? [startYear, endYear] : [2020, 2024];
-        for (let y = range[0]; y <= range[1]; y++) acc[key][`values${y}`] = 0;
-      }
-
-      acc[key].systemNames.push(item.systemName);
-      const fields = Object.keys(item).filter(k => k.startsWith('values'));
-      for (const field of fields) {
-        const yearMatch = field.match(/(\d{4})$/);
-        if (yearMatch) {
-          const year = parseInt(yearMatch[1], 10);
-          if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
-            const val = item[field];
-            const num = Number(val);
-            if (!isNaN(num)) acc[key][field] = (acc[key][field] || 0) + num;
+        const fields = Object.keys(item).filter(k => k.startsWith('values'));
+        for (const field of fields) {
+          const yearMatch = field.match(/(\d{4})$/);
+          if (yearMatch) {
+            const year = parseInt(yearMatch[1], 10);
+            if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
+              filteredItem[field] = item[field];
+            }
           }
         }
-      }
-      return acc;
-    }, {} as Record<string, any>);
+        return filteredItem;
+      });
+    }
 
-    mapped = Object.values(grouped);
-  } else {
-    // For specific system names
-    mapped = results.map(item => {
-      const filteredItem: any = {
-        geographicReach: item.geographicReach,
-        countryCode: this.getCountryCodeFrench(item.geographicReach),
-        systemNames: [item.systemName],
-      };
-      const fields = Object.keys(item).filter(k => k.startsWith('values'));
-      for (const field of fields) {
-        const yearMatch = field.match(/(\d{4})$/);
-        if (yearMatch) {
-          const year = parseInt(yearMatch[1], 10);
-          if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
-            filteredItem[field] = item[field];
-          }
-        }
-      }
-      return filteredItem;
-    });
-  }
+    // Combine total + other systems when includeTotal is true
+    if (includeTotal) {
+      const totalObj = mapped.find(item =>
+        item.systemNames.some(name =>
+          name.toLowerCase().includes('total des taux de change')
+        )
+      );
 
-  // Combine total + other systems when includeTotal is true
-  if (includeTotal) {
-    const totalObj = mapped.find(item =>
-      item.systemNames.some(name =>
-        name.toLowerCase().includes('total des taux de change')
-      )
-    );
-
-    const otherNames = normalized.filter(name => name !== 'total');
-    const data = otherNames.length === 0
-      ? mapped.filter(item =>
+      const otherNames = normalized.filter(name => name !== 'total');
+      const data = otherNames.length === 0
+        ? mapped.filter(item =>
           !item.systemNames.some(name => name.toLowerCase().includes('total des taux de change'))
         )
-      : mapped.filter(item =>
+        : mapped.filter(item =>
           item.systemNames.some(name => otherNames.includes(name.toLowerCase()))
         );
 
-    return { total: totalObj || null, data };
-  }
+      return { total: totalObj || null, data };
+    }
 
-  return mapped;
-}
+    return mapped;
+  }
 
 
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
-async frenchGetVolumeDataWithCountryCode(systemNames: string[], startYear?: number, endYear?: number) {
-  if (!Array.isArray(systemNames) || systemNames.length === 0) {
-    throw new BadRequestException('systemNames doit être un tableau non vide.');
-  }
-  if (startYear && endYear && startYear > endYear) {
-    throw new BadRequestException('startYear ne peut pas être supérieur à endYear.');
-  }
+  async frenchGetVolumeDataWithCountryCode(systemNames: string[], startYear?: number, endYear?: number) {
+    if (!Array.isArray(systemNames) || systemNames.length === 0) {
+      throw new BadRequestException('systemNames doit être un tableau non vide.');
+    }
+    if (startYear && endYear && startYear > endYear) {
+      throw new BadRequestException('startYear ne peut pas être supérieur à endYear.');
+    }
 
-  const normalized = systemNames.map(n => n.trim().toLowerCase());
-  const includeTotal = normalized.includes("total");
+    const normalized = systemNames.map(n => n.trim().toLowerCase());
+    const includeTotal = normalized.includes("total");
 
-  const results = includeTotal
-    ? await this.frenchvolumeDataModel.find({}).lean()
-    : await this.frenchvolumeDataModel.find({
+    const results = includeTotal
+      ? await this.frenchvolumeDataModel.find({}).lean()
+      : await this.frenchvolumeDataModel.find({
         systemName: { $in: [...systemNames, "Total des taux de change", "total des taux de change"] },
       }).lean();
 
-  let mapped: any[] = [];
+    let mapped: any[] = [];
 
-  if (systemNames.length === 1 && normalized[0] === "total") {
-    const grouped = results.reduce((acc, item) => {
-      const key = item.geographicReach || 'UNKNOWN';
-      if (!acc[key]) {
-        acc[key] = {
-          geographicReach: key,
-          countryCode: this.getCountryCodeFrench(key),
-          systemNames: [],
+    if (systemNames.length === 1 && normalized[0] === "total") {
+      const grouped = results.reduce((acc, item) => {
+        const key = item.geographicReach || 'UNKNOWN';
+        if (!acc[key]) {
+          acc[key] = {
+            geographicReach: key,
+            countryCode: this.getCountryCodeFrench(key),
+            systemNames: [],
+          };
+          const range = startYear && endYear ? [startYear, endYear] : [2020, 2024];
+          for (let y = range[0]; y <= range[1]; y++) acc[key][`volumes${y}`] = 0;
+        }
+
+        acc[key].systemNames.push(item.systemName);
+        const fields = Object.keys(item).filter(k => k.startsWith('volumes'));
+        for (const field of fields) {
+          const yearMatch = field.match(/(\d{4})$/);
+          if (yearMatch) {
+            const year = parseInt(yearMatch[1], 10);
+            if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
+              const val = item[field];
+              const num = Number(val);
+              if (!isNaN(num)) acc[key][field] = (acc[key][field] || 0) + num;
+            }
+          }
+        }
+        return acc;
+      }, {} as Record<string, any>);
+
+      mapped = Object.values(grouped);
+    } else {
+      mapped = results.map(item => {
+        const filteredItem: any = {
+          geographicReach: item.geographicReach,
+          countryCode: this.getCountryCodeFrench(item.geographicReach),
+          systemNames: [item.systemName],
         };
-        const range = startYear && endYear ? [startYear, endYear] : [2020, 2024];
-        for (let y = range[0]; y <= range[1]; y++) acc[key][`volumes${y}`] = 0;
-      }
-
-      acc[key].systemNames.push(item.systemName);
-      const fields = Object.keys(item).filter(k => k.startsWith('volumes'));
-      for (const field of fields) {
-        const yearMatch = field.match(/(\d{4})$/);
-        if (yearMatch) {
-          const year = parseInt(yearMatch[1], 10);
-          if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
-            const val = item[field];
-            const num = Number(val);
-            if (!isNaN(num)) acc[key][field] = (acc[key][field] || 0) + num;
+        const fields = Object.keys(item).filter(k => k.startsWith('volumes'));
+        for (const field of fields) {
+          const yearMatch = field.match(/(\d{4})$/);
+          if (yearMatch) {
+            const year = parseInt(yearMatch[1], 10);
+            if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
+              filteredItem[field] = item[field];
+            }
           }
         }
-      }
-      return acc;
-    }, {} as Record<string, any>);
+        return filteredItem;
+      });
+    }
 
-    mapped = Object.values(grouped);
-  } else {
-    mapped = results.map(item => {
-      const filteredItem: any = {
-        geographicReach: item.geographicReach,
-        countryCode: this.getCountryCodeFrench(item.geographicReach),
-        systemNames: [item.systemName],
-      };
-      const fields = Object.keys(item).filter(k => k.startsWith('volumes'));
-      for (const field of fields) {
-        const yearMatch = field.match(/(\d{4})$/);
-        if (yearMatch) {
-          const year = parseInt(yearMatch[1], 10);
-          if (!startYear || !endYear || (year >= startYear && year <= endYear)) {
-            filteredItem[field] = item[field];
-          }
-        }
-      }
-      return filteredItem;
-    });
-  }
+    if (includeTotal) {
+      const totalObj = mapped.find(item =>
+        item.systemNames.some(name =>
+          name.toLowerCase().includes('total des taux de change')
+        )
+      );
 
-  if (includeTotal) {
-    const totalObj = mapped.find(item =>
-      item.systemNames.some(name =>
-        name.toLowerCase().includes('total des taux de change')
-      )
-    );
-
-    const otherNames = normalized.filter(name => name !== 'total');
-    const data = otherNames.length === 0
-      ? mapped.filter(
+      const otherNames = normalized.filter(name => name !== 'total');
+      const data = otherNames.length === 0
+        ? mapped.filter(
           item => !item.systemNames.some(name =>
             name.toLowerCase().includes('total des taux de change')
           )
         )
-      : mapped.filter(item =>
+        : mapped.filter(item =>
           item.systemNames.some(name => otherNames.includes(name.toLowerCase()))
         );
 
-    return { total: totalObj || null, data };
-  }
+      return { total: totalObj || null, data };
+    }
 
-  return mapped;
-}
+    return mapped;
+  }
 
 
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
@@ -887,90 +897,103 @@ async frenchGetVolumeDataWithCountryCode(systemNames: string[], startYear?: numb
   }
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
   //////////////////////////////////////FRENCH METHODS////////////////////////////////////////////
-  async FrenchcountByDomesticAndRegional() {
-    // French-to-English alias mapping for readability or UI labels
-    const categoryAliases: Record<string, string> = {
-      "EN SERVICE : IPS NATIONAUX": "En service (nationaux)",
-      "DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "En développement (domestique)",
-      "Pays n'ayant pas d'activité IPS au niveau national": "Aucune activité IPS nationale",
-      "EN SERVICE: IPS RÉGIONAL": "En service (régional)",
-      "RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "En développement (régional)",
-      "EN PHASE PILOTE": "En phase pilote",
-      "Pays n'ayant pas d'activité régionale en matière d'IPS": "Aucune activité IPS régionale",
-    };
+async FrenchcountByDomesticAndRegional() {
+  // French-to-English alias mapping for readability or UI labels
+  const categoryAliases: Record<string, string> = {
+    "EN SERVICE : IPS NATIONAUX": "En service (nationaux)",
+    "DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "En développement (domestique)",
+    "Pays n'ayant pas d'activité IPS au niveau national": "Aucune activité IPS nationale",
+    "EN SERVICE: IPS RÉGIONAL": "En service (régional)",
+    "RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "En développement (régional)",
+    "EN PHASE PILOTE": "En phase pilote",
+    "Pays n'ayant pas d'activité régionale en matière d'IPS": "Aucune activité IPS régionale",
+  };
 
-    // Domestic (national-level) categories
-    const domesticCategories = [
-      'EN SERVICE : IPS NATIONAUX',
-      'DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)',
-      `Pays n'ayant pas d'activité IPS au niveau national`,
-    ];
+  // 🧠 Tooltip mapping (French)
+  const categoryTooltips: Record<string, string> = {
+    "EN SERVICE : IPS NATIONAUX": "Pays avec un IPS pleinement opérationnel",
+    "DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "Pays en phase de planification ou de développement d’un IPS domestique",
+    "Pays n'ayant pas d'activité IPS au niveau national": "Pays sans initiative IPS nationale active",
+    "EN SERVICE: IPS RÉGIONAL": "Régions avec un IPS transfrontalier opérationnel",
+    "RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "IPS régional en phase de planification ou de développement",
+    "EN PHASE PILOTE": "L’IPS régional est en phase pilote ou de test",
+    "Pays n'ayant pas d'activité régionale en matière d'IPS": "Régions sans initiatives d’IPS régional",
+  };
 
-    // Regional (cross-border) categories
-    const regionalCategories = [
-      'EN SERVICE: IPS RÉGIONAL',
-      'RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)',
-      'EN PHASE PILOTE',
-      `Pays n'ayant pas d'activité régionale en matière d'IPS`,
-    ];
+  // Domestic (national-level) categories
+  const domesticCategories = [
+    "EN SERVICE : IPS NATIONAUX",
+    "DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)",
+    `Pays n'ayant pas d'activité IPS au niveau national`,
+  ];
 
-    /**
-     * Internal helper to group and count by category.
-     * For regional categories, also lists unique IPS names.
-     */
-    const buildGroup = async (
-      groupName: string,
-      categories: string[],
-      isRegional = false,
-    ) => {
-      const categoriesWithCounts = await Promise.all(
-        categories.map(async (category) => {
-          const docs = await this.frenchipsActivityModel.find({ category })
-            .lean()
-            .exec();
+  // Regional (cross-border) categories
+  const regionalCategories = [
+    "EN SERVICE: IPS RÉGIONAL",
+    "RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)",
+    "EN PHASE PILOTE",
+    `Pays n'ayant pas d'activité régionale en matière d'IPS`,
+  ];
 
-          const total = docs.length;
+  /**
+   * Internal helper to group and count by category.
+   * For regional categories, also lists unique IPS names.
+   */
+  const buildGroup = async (
+    groupName: string,
+    categories: string[],
+    isRegional = false,
+  ) => {
+    const categoriesWithCounts = await Promise.all(
+      categories.map(async (category) => {
+        const docs = await this.frenchipsActivityModel.find({ category })
+          .lean()
+          .exec();
 
-          // For regional only: collect unique IPS names
-          let ipsNames: string[] = [];
-          if (isRegional) {
-            ipsNames = [
-              ...new Set(
-                docs
-                  .map((doc) => doc.ipsName)
-                  .filter((name): name is string => !!name && name.trim() !== ''),
-              ),
-            ];
-          }
+        const total = docs.length;
 
-          return {
-            category,
-            alias: categoryAliases[category] || category,
-            total,
-            ...(isRegional ? { ipsNames } : {}), // add ipsNames only for regional
-          };
-        }),
-      );
+        // For regional only: collect unique IPS names
+        let ipsNames: string[] = [];
+        if (isRegional) {
+          ipsNames = [
+            ...new Set(
+              docs
+                .map((doc) => doc.ipsName)
+                .filter((name): name is string => !!name && name.trim() !== ""),
+            ),
+          ];
+        }
 
-      const total = categoriesWithCounts.reduce((sum, c) => sum + c.total, 0);
+        return {
+          category,
+          alias: categoryAliases[category] || category,
+          tooltip: categoryTooltips[category] || "Aucune description disponible",
+          total,
+          ...(isRegional ? { ipsNames } : {}), // add ipsNames only for regional
+        };
+      }),
+    );
 
-      return {
-        group: groupName,
-        total,
-        categories: categoriesWithCounts,
-      };
-    };
+    const total = categoriesWithCounts.reduce((sum, c) => sum + c.total, 0);
 
-    // Build both groups
-    const domestic = await buildGroup('Domestique', domesticCategories);
-    const regional = await buildGroup('Régional', regionalCategories, true);
-
-    // Final structure
     return {
-      totalGroups: 2,
-      groups: [domestic, regional],
+      group: groupName,
+      total,
+      categories: categoriesWithCounts,
     };
-  }
+  };
+
+  // Build both groups
+  const domestic = await buildGroup("Domestique", domesticCategories);
+  const regional = await buildGroup("Régional", regionalCategories, true);
+
+  // Final structure
+  return {
+    totalGroups: 2,
+    groups: [domestic, regional],
+  };
+}
+
 
 
   //////////////////////////////////////////FRENCH CATEGORY FILTERS////////////////////////////////////////////
