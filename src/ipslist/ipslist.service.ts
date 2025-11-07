@@ -1071,7 +1071,7 @@ export class IpslistService {
                 const orConditions: any[] = [];
                 for (const value of values) {
                   const cleanedValue = String(value).trim();
-                  if (cleanedValue === "Règles du système publiquement disponibles") {
+                  if (cleanedValue === "Règles du système accessibles au public") {
                     orConditions.push({ schemeRulesPublic: { $regex: "^oui$", $options: "i" } });
                   } else if (cleanedValue === "Participation indirecte") {
                     orConditions.push({ nonBankingFIsSponsorship: { $regex: "^oui$", $options: "i" } });
@@ -1085,24 +1085,6 @@ export class IpslistService {
                 }
                 if (orConditions.length > 0) filterQueries.push({ $or: orConditions });
                 continue;
-
-                // const orConditions: any[] = [];
-                // for (const value of values) {
-                //   const cleanedValue = String(value).trim();
-                //   if (cleanedValue === "Scheme rules publicly available") {
-                //     orConditions.push({ schemeRulesPublic: { $regex: "^yes$", $options: "i" } });
-                //   } else if (cleanedValue === "Indirect Participation") {
-                //     orConditions.push({ nonBankingFIsSponsorship: { $regex: "^yes$", $options: "i" } });
-                //   } else {
-                //     const normalizedValue =
-                //       cleanedValue === "Public Private Partnership (PPP)"
-                //         ? "Public Private Partnership"
-                //         : cleanedValue;
-                //     orConditions.push({ governanceTypology: { $regex: normalizedValue, $options: "i" } });
-                //   }
-                // }
-                // if (orConditions.length > 0) filterQueries.push({ $or: orConditions });
-                // continue;
               }
 
               if (field === "IPSFunctionality") {
@@ -1236,7 +1218,7 @@ export class IpslistService {
                 const orConditions: any[] = [];
                 for (const value of values) {
                   const cleanedValue = String(value).trim();
-                  if (cleanedValue === "Règles du système publiquement disponibles") {
+                  if (cleanedValue === "Règles du système accessibles au public") {
                     orConditions.push({ schemeRulesPublic: { $regex: "^oui$", $options: "i" } });
                   } else if (cleanedValue === "Participation indirecte") {
                     orConditions.push({ nonBankingFIsSponsorship: { $regex: "^oui$", $options: "i" } });
@@ -1250,24 +1232,6 @@ export class IpslistService {
                 }
                 if (orConditions.length > 0) filterQueries.push({ $or: orConditions });
                 continue;
-
-                // const orConditions: any[] = [];
-                // for (const value of values) {
-                //   const cleanedValue = String(value).trim();
-                //   if (cleanedValue === "Scheme rules publicly available") {
-                //     orConditions.push({ schemeRulesPublic: { $regex: "^yes$", $options: "i" } });
-                //   } else if (cleanedValue === "Indirect Participation") {
-                //     orConditions.push({ nonBankingFIsSponsorship: { $regex: "^yes$", $options: "i" } });
-                //   } else {
-                //     const normalizedValue =
-                //       cleanedValue === "Public Private Partnership (PPP)"
-                //         ? "Public Private Partnership"
-                //         : cleanedValue;
-                //     orConditions.push({ governanceTypology: { $regex: normalizedValue, $options: "i" } });
-                //   }
-                // }
-                // if (orConditions.length > 0) filterQueries.push({ $or: orConditions });
-                // continue;
               }
 
               if (field === "IPSFunctionality") {
