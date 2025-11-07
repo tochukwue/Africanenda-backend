@@ -1269,7 +1269,7 @@ async FrenchfetchAndSyncVolumeData() {
     const yearColumns: Record<number, number> = {};
 
     // ✅ Match "Volumes 2020 Transactions IPS" or "Volume 2020 Transactions IPS"
-    const yearRegex = /volumes?\s*(\d{4})\s*transactions\s*ips/i;
+    const yearRegex = /volumes?\s*(\d{4})\s*transactions\s*spi/i;
 
     headersNorm.forEach((h, idx) => {
       const match = h.match(yearRegex);
@@ -1403,7 +1403,7 @@ async FrenchfetchAndSyncValueData() {
     }
 
     const yearColumns: Record<number, number> = {};
-    const yearRegex = /valeur\s*\(\$us\)\s*(\d{4})\s*transactions\s*ips/i;
+    const yearRegex = /valeur\s*\(\$us\)\s*(\d{4})\s*transactions\s*spi/i;
 
     headersNorm.forEach((h, idx) => {
       const match = h.match(yearRegex);
