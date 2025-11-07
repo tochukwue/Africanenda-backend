@@ -901,13 +901,13 @@ export class IpslistService {
   async FrenchcountByDomesticAndRegional() {
     // French-to-English alias mapping for readability or UI labels
     const categoryAliases: Record<string, string> = {
-      "EN SERVICE : IPS NATIONAUX": "En service (nationaux)",
-      "DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "En développement (domestique)",
-      "Pays n'ayant pas d'activité IPS au niveau national": "Aucune activité IPS nationale",
-      "EN SERVICE: IPS RÉGIONAL": "En service (régional)",
-      "RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "En développement (régional)",
-      "EN PHASE PILOTE": "En phase pilote",
-      "Pays n'ayant pas d'activité régionale en matière d'IPS": "Aucune activité IPS régionale",
+      "EN SERVICE : IPS NATIONAUX": "En cours",
+      "DOMESTIQUE : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "En développement",
+      "Pays n'ayant pas d'activité IPS au niveau national": "Pas d'activité IPS nationale",
+      "EN SERVICE: IPS RÉGIONAL": "En cours",
+      "RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)": "En développement",
+      "EN PHASE PILOTE": "Pilote",
+      "Pays n'ayant pas d'activité régionale en matière d'IPS": "Aucune activité IPS transfrontalière",
     };
 
     // 🧠 Tooltip mapping (French)
