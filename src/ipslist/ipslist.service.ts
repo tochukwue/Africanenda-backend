@@ -931,11 +931,14 @@ export class IpslistService {
     // Regional (cross-border) categories
     const regionalCategories = [
       "EN SERVICE: IPS RÉGIONAL",
-      "RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)",
       "EN PHASE PILOTE",
+      "RÉGIONAL : EN DÉVELOPPEMENT ( JUILLET 2024 À MARS 2025)",
       `Pays n'ayant pas d'activité régionale en matière d'IPS`,
     ];
 
+
+
+    
     /**
      * Internal helper to group and count by category.
      * For regional categories, also lists unique IPS names.
