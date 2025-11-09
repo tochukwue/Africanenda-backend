@@ -2174,7 +2174,7 @@ export class IpslistService {
 
       const sheets = google.sheets({ version: 'v4', auth });
       const spreadsheetId = '1igYm2eCWELDu8FAutbJmQtfaw1ZCDo_PtPQWZiaTdjE';
-      const range = 'Liste des IPS en service!B1:ZZ';
+      const range = 'Liste des SPI en service!B1:ZZ';
 
       const cleanValue = (value: any): string =>
         value == null || value === ''
